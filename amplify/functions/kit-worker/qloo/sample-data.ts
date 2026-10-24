@@ -1,7 +1,16 @@
 // Sample data shaped like Qloo Insights API responses. Used until the event
 // key arrives (QLOO_MODE=sample). IDs are placeholders, not real Qloo IDs.
 
-const e = (id, name, type, affinity, tags = [], properties = {}) => ({
+import type { QlooEntity, QlooTag } from "./types";
+
+const e = (
+  id: string,
+  name: string,
+  type: string,
+  affinity: number,
+  tags: string[] = [],
+  properties: QlooEntity["properties"] = {},
+): QlooEntity => ({
   entity_id: `sample-${id}`,
   name,
   type: `urn:entity:${type}`,
@@ -12,7 +21,7 @@ const e = (id, name, type, affinity, tags = [], properties = {}) => ({
 });
 
 // Entities a carer is likely to type as seeds.
-export const SEED_ENTITIES = [
+export const SEED_ENTITIES: QlooEntity[] = [
   e("kishore-kumar", "Kishore Kumar", "artist", 1, ["Bollywood", "Playback singer", "Hindi film music"]),
   e("guide-1965", "Guide", "movie", 1, ["Drama", "Hindi cinema", "Romance"], { release_year: 1965 }),
   e("pather-panchali", "Pather Panchali", "movie", 1, ["Bengali cinema", "Drama"], { release_year: 1955 }),
@@ -22,7 +31,7 @@ export const SEED_ENTITIES = [
 ];
 
 // Results keyed by target entity type. Ordered by affinity.
-export const INSIGHTS = {
+export const INSIGHTS: Record<string, QlooEntity[]> = {
   artist: [
     e("rafi", "Mohammed Rafi", "artist", 0.97, ["Bollywood", "Playback singer", "Hindi film music"]),
     e("rd-burman", "R.D. Burman", "artist", 0.95, ["Bollywood", "Film score", "Hindi film music"]),
@@ -56,7 +65,7 @@ export const INSIGHTS = {
 };
 
 // Tags returned by tag search, e.g. to turn "fish curry" into a cuisine tag.
-export const TAGS = [
+export const TAGS: QlooTag[] = [
   { id: "urn:tag:genre:place:restaurant:bengali", name: "Bengali", type: "urn:tag:genre:place" },
   { id: "urn:tag:genre:place:restaurant:seafood", name: "Seafood", type: "urn:tag:genre:place" },
   { id: "urn:tag:keyword:place:fish_curry", name: "Fish curry", type: "urn:tag:keyword:place" },

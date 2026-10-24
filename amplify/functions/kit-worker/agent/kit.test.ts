@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildKit } from "./kit.js";
+import { buildKit } from "./kit";
 
 test("builds a kit with evidence from sample Qloo data", async () => {
   const kit = await buildKit({ region: "Kolkata", era: "1960s", loves: ["Kishore Kumar", "Guide (1965)", "Fish curry"] });

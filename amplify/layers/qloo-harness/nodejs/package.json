@@ -1,0 +1,8 @@
+{
+  "name": "qloo-harness-layer",
+  "private": true,
+  "description": "Lambda layer contents. Installed by `npm run layer`; node_modules is not committed.",
+  "dependencies": {
+    "@qloo/qloo-harness": "0.1.26"
+  }
+}

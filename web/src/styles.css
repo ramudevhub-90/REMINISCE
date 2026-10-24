@@ -114,3 +114,6 @@ code {
   .row { flex-direction: column; }
   .narrow { flex: 1; }
 }
+
+.progress { margin: 0; padding-left: 22px; color: var(--muted); font-size: 15px; display: grid; gap: 4px; }
+.progress li:last-child { color: var(--teal); font-weight: 600; }

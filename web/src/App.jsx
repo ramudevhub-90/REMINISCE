@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buildKit } from "./api.js";
 import { loadProfile, saveProfile } from "./storage.js";
 
 const EXAMPLE = { name: "Baba", region: "Kolkata", era: "1960s", loves: ["Kishore Kumar", "Fish curry", "Guide (1965)"] };
@@ -6,26 +7,22 @@ const EXAMPLE = { name: "Baba", region: "Kolkata", era: "1960s", loves: ["Kishor
 export default function App() {
   const [profile, setProfile] = useState(() => loadProfile() ?? { name: "", region: "", era: "", loves: [] });
   const [kit, setKit] = useState(null);
-  const [status, setStatus] = useState({ loading: false, error: "" });
+  const [status, setStatus] = useState({ loading: false, error: "", steps: [] });
 
   async function build(p) {
     saveProfile(p);
     setProfile(p);
-    setStatus({ loading: true, error: "" });
+    setStatus({ loading: true, error: "", steps: [] });
     try {
       // The name never leaves the device: only taste seeds are sent.
-      const res = await fetch("/api/kit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ region: p.region, era: p.era, loves: p.loves }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Couldn't build a kit.");
-      setKit(body);
-      setStatus({ loading: false, error: "" });
+      const result = await buildKit({ region: p.region, era: p.era, loves: p.loves }, (message) =>
+        setStatus((s) => ({ ...s, steps: [...s.steps, message] })),
+      );
+      setKit(result);
+      setStatus({ loading: false, error: "", steps: [] });
       window.scrollTo({ top: 0 });
     } catch (err) {
-      setStatus({ loading: false, error: err.message });
+      setStatus({ loading: false, error: err.message, steps: [] });
     }
   }
 
@@ -122,6 +119,13 @@ function Onboarding({ initial, onSubmit, status }) {
             </li>
           ))}
         </ul>
+      )}
+      {status.loading && status.steps.length > 0 && (
+        <ol className="progress" aria-live="polite">
+          {status.steps.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </ol>
       )}
       {status.error && <p className="error">{status.error}</p>}
       <button className="primary" disabled={status.loading || (!form.loves.length && !draft.trim())}>
