@@ -1,0 +1,27 @@
+{
+  "name": "reminisce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A reminiscence companion for dementia carers, powered by Qloo's taste graph.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "dev": "node --watch server/index.js & vite --config web/vite.config.js",
+    "build": "vite build --config web/vite.config.js",
+    "start": "node server/index.js",
+    "test": "node --test \"server/**/*.test.js\""
+  },
+  "dependencies": {
+    "@qloo/qloo-harness": "0.1.26",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "vite": "^7.0.0"
+  }
+}
