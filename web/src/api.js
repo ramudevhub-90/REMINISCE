@@ -47,11 +47,13 @@ function startJob(args, onProgress) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearInterval(checker);
       sub.unsubscribe();
       fn(value);
     };
 
-    // If the subscription drops, fall back to reading the stored job.
+    // Also read the stored job every few seconds: a cached job can finish
+    // before the subscription is connected, and its "done" event would be missed.
     const poll = async () => {
       const { data } = await client.queries.getKitJob({ id: jobId });
       if (data?.status === "done") finish(resolve, parse(data.result));
@@ -59,6 +61,7 @@ function startJob(args, onProgress) {
       else return false;
       return true;
     };
+    const checker = setInterval(() => poll().catch(() => {}), 2500);
     const timer = setTimeout(async () => {
       if (!(await poll().catch(() => false))) finish(reject, new Error("This is taking too long. Please try again."));
     }, TIMEOUT_MS);

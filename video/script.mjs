@@ -10,7 +10,7 @@ export const VOICE = { engine: "polly", name: "Kajal", polly: "neural" };
 export const INTRO = [
   {
     scene: 0,
-    text: "This is Reminisce, a companion for people caring for someone with dementia. It uses Qloo’s taste graph to bring back the music, films and food of someone’s youth, and it gets better with every visit.",
+    text: "This is Reminisce, a companion for people caring for someone with dementia, at home or in a care home. It uses Qloo’s taste graph to bring back the music, films and food of someone’s youth, and it gets better with every visit.",
   },
   {
     scene: 1,
@@ -41,9 +41,13 @@ export const DEMO = [
   { id: "session", text: "During the visit, session mode shows one big card at a time. The carer plays the song, watches, and taps one word." },
   { id: "react", text: "Here, Baba lit up." },
   { id: "summary", text: "At the end, the carer adds a short note to the journal. It stays on this device." },
-  { id: "learning", text: "Now Reminisce knows what reached him." },
+  { id: "learning", text: "Now Reminisce knows what reached him. It even builds a taste portrait from Qloo’s tags on what lit him up, and the next kit leans that way." },
   { id: "next", text: "Plan the next session. What lit him up goes back to Qloo as new signals, and anything marked not today is set aside." },
   { id: "week2", text: "So week two opens with his favourites to play again, then brings new films and songs, shaped by what actually worked." },
+  { id: "timeline", text: "From any kit, Their world opens a timeline of the years he grew up in, five years at a time." },
+  { id: "years", text: "Each window holds the films of those years that suit his tastes, with a gentle question to ask about them." },
+  { id: "group", text: "Care homes can run group sessions too. Add the residents joining today, or try our Sunrise Care Home." },
+  { id: "groupKit", text: "Reminisce expands each resident’s tastes through Qloo, then ranks what reaches the most of them. Here, Lata Mangeshkar and Kishore Kumar reach everyone in the room." },
 ];
 
 export const OUTRO = [
@@ -57,10 +61,10 @@ export const OUTRO = [
   },
   {
     scene: 10,
-    text: "And it needs Qloo. Only a taste graph connects a singer to films and food, and turns a smile into a signal. Next, carers will debrief by voice, see a timeline of the years they grew up in, and share the profile with family.",
+    text: "And it needs Qloo. Only a taste graph connects a singer to films and food, finds what a whole room shares, and turns a smile into a signal. Next, carers will debrief by voice, and families will share one profile.",
   },
   {
     scene: 11,
-    text: "Try it now at the link on screen. Pick Baba, Margaret or Abuela Rosa, and begin a session. Thank you for watching.",
+    text: "Try it now at the link on screen. Pick Baba, Margaret or Abuela Rosa, or plan a group session at Sunrise Care Home. Thank you for watching.",
   },
 ];

@@ -202,7 +202,7 @@ const ACTIONS = {
     await button(page, "Save to journal").click();
     await page.locator(".kit-hero").waitFor();
     await sleep(800);
-    await scrollTo(page, ".learning", 220);
+    await scrollTo(page, ".portrait, .learning", 200);
   },
   async next(page) {
     await page.evaluate(() => window.scrollTo({ top: 0 }));
@@ -215,6 +215,36 @@ const ACTIONS = {
     await scrollTo(page, ".shelf");
     await sleep(3500);
     await scrollTo(page, ".cards.posters", 170);
+  },
+  async timeline(page) {
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
+    await sleep(900);
+    await page.locator(".world-link").click();
+    await page.locator(".years").waitFor({ timeout: 180_000 });
+    await sleep(1200);
+  },
+  async years(page) {
+    await scrollTo(page, ".years", 110);
+    await sleep(3200);
+    await scrollTo(page, ".year-chapter:nth-child(3)", 110);
+  },
+  async group(page) {
+    await button(page, "Back to Baba").click();
+    await button(page, "Edit details").click();
+    await sleep(500);
+    await scrollTo(page, ".group-callout", 220);
+    await sleep(1400);
+    await button(page, "Plan a group session").click();
+    await sleep(900);
+    await page.locator(".demo-group").click();
+    await sleep(700);
+    await scrollTo(page, ".residents", 170);
+  },
+  async groupKit(page) {
+    await button(page, "Prepare the group session").click();
+    await page.locator(".kit-hero").waitFor({ timeout: 240_000 });
+    await sleep(1500);
+    await scrollTo(page, ".shelf");
   },
 };
 
