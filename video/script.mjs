@@ -18,7 +18,7 @@ export const INTRO = [
   },
   {
     scene: 2,
-    text: "So a carer starts with a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name stays on the phone. Only the place, the decade and those fragments go to Qloo.",
+    text: "So a carer starts with a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name stays in their browser. Only the place, the decade and those fragments go to Qloo.",
   },
   {
     scene: 3,
@@ -32,8 +32,8 @@ export const INTRO = [
 
 // Each beat runs an action in the live app, then holds while its line is read.
 export const DEMO = [
-  { id: "home", text: "Here is the live app. There is no sign-up. Anyone can try one of three ready-made people. Let’s pick Baba, who grew up in Kolkata in the 1960s." },
-  { id: "building", text: "The agent works in the background and streams each step to the phone as it goes." },
+  { id: "home", text: "Here is the live web app. It runs in any browser, on a phone, tablet or laptop, with no install and no sign-up. Anyone can try one of three ready-made people. Let’s pick Baba, who grew up in Kolkata in the 1960s." },
+  { id: "building", text: "The agent works in the background and streams each step to the screen as it goes." },
   { id: "kit", text: "Moments later, there is a session kit for Baba." },
   { id: "music", text: "Classic singers of his era, each with a photo and a way to play them." },
   { id: "films", text: "Films from the years he grew up in, and fish curry to cook together, with places nearby that are known for it." },
@@ -57,7 +57,7 @@ export const OUTRO = [
   },
   {
     scene: 9,
-    text: "Under the hood, it is serverless on AWS. The phone starts a job through AppSync, a queue hands it to the agent, and the agent calls Qloo through the official harness, with every result cached. Progress streams back step by step, and the Qloo key never leaves the server.",
+    text: "Under the hood, it is serverless on AWS. The web app starts a job through AppSync, a queue hands it to the agent, and the agent calls Qloo through the official harness, with every result cached. Progress streams back step by step, and the Qloo key never leaves the server.",
   },
   {
     scene: 10,

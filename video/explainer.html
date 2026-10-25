@@ -259,7 +259,7 @@ body.record .rec-tag { display: block; position: fixed; top: 18px; right: 24px; 
         </div>
         <div class="rise" style="--d:1.6">
           <p class="h">Three fragments are enough to start.</p>
-          <p class="sub" style="margin-top:1.6cqw">The name never leaves the phone. Only the place, the decade and the things they love are sent to Qloo.</p>
+          <p class="sub" style="margin-top:1.6cqw">The name never leaves their browser. Only the place, the decade and the things they love are sent to Qloo.</p>
         </div>
       </div>
     </section>
@@ -378,14 +378,14 @@ body.record .rec-tag { display: block; position: fixed; top: 18px; right: 24px; 
     <section class="scene" data-title="Under the hood" data-secs="14">
       <p class="eyebrow rise">How it’s built</p>
       <div class="flow">
-        <div class="panel rise" style="--d:.2"><strong>Carer’s phone</strong><span>Profile and journal stay on the device</span></div>
+        <div class="panel rise" style="--d:.2"><strong>Web app</strong><span>Any browser: phone, tablet or laptop</span></div>
         <div class="panel rise" style="--d:.4"><strong>AppSync</strong><span>Guest sign-in, no account needed</span></div>
         <div class="panel rise" style="--d:.6"><strong>SQS queue</strong><span>Agent jobs run in the background</span></div>
         <div class="panel rise" style="--d:.8"><strong>Agent (Lambda)</strong><span>Plans the Qloo calls and builds the kit</span></div>
         <div class="panel qloo rise" style="--d:1.0"><strong>Qloo Taste AI</strong><span>Via the qloo harness, cached in DynamoDB</span></div>
       </div>
-      <p class="back rise" style="--d:1.3">Progress streams back to the phone step by step</p>
-      <p class="sub rise" style="--d:1.5">Serverless on AWS. The Qloo key stays on the server; the person’s name never leaves the phone.</p>
+      <p class="back rise" style="--d:1.3">Progress streams back to the browser step by step</p>
+      <p class="sub rise" style="--d:1.5">Serverless on AWS. The Qloo key stays on the server; the person’s name is never sent to Qloo.</p>
     </section>
 
     <section class="scene" data-title="Why Qloo" data-secs="14">
@@ -428,14 +428,14 @@ body.record .rec-tag { display: block; position: fixed; top: 18px; right: 24px; 
 const CAPTIONS = [
   "This is Reminisce, a companion for people caring for someone with dementia. It uses Qloo’s taste graph to rebuild the music, films and food of someone’s youth, and it gets better with every session.",
   "More than fifty five million people live with dementia. Many can no longer tell you what they like. But songs, films and dishes from their youth can still reach them. The hard part for a carer is knowing what to try.",
-  "The carer shares just a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name stays on the phone. Only the place, the decade and the fragments are sent to Qloo.",
+  "The carer shares just a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name stays in their browser. Only the place, the decade and the fragments are sent to Qloo.",
   "First, the agent finds each fragment in Qloo. Kishore Kumar becomes a singer. Guide, with its year, becomes a 1965 film. Fish curry becomes a dish tag that Qloo uses for restaurants known for it.",
   "Then Qloo expands those seeds across music, film and food. It asks what people with the same tastes love. The decade sets a release-year window for films, and Qloo’s own era genre, Old Hindi, keeps the music in the right years. Food comes from places near where they grew up.",
   "The result is a ready-to-use session kit: singers with photos and play links, film clips from their youth, something to cook together, and gentle conversation starters. It takes about half a minute.",
   "Every suggestion shows its evidence. Tap Why this, and you see the Qloo affinity behind it, with the exact request that was sent. It always describes people with similar tastes, never a claim about the person.",
   "During the visit, session mode shows one large card at a time. The carer plays the song, watches, and taps one word: lit up, a little, or not today. Here, Baba lit up at Manna Dey.",
   "This is the loop. What lit them up goes back to Qloo as new signals, and everything already shown is left out. So week two brings new things, shaped by what actually worked. The profile sharpens for someone who can no longer describe their own taste.",
-  "Under the hood it is serverless on AWS. The phone starts a job through AppSync, a queue hands it to the agent, and the agent calls Qloo through the official harness, with results cached. Progress streams back step by step. The key stays on the server.",
+  "Under the hood it is serverless on AWS. The web app starts a job through AppSync, a queue hands it to the agent, and the agent calls Qloo through the official harness, with results cached. Progress streams back step by step. The key stays on the server.",
   "Why does it need Qloo? Because only a taste graph connects a singer to films and food, and lets reactions become signals. Next, carers will debrief by voice, see a timeline of the years they grew up in, and share the profile with family.",
   "Try it now, with no sign-up. Pick Baba, Margaret or Abuela Rosa, and begin a session. Thank you for watching."
 ];
