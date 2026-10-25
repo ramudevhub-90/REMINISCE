@@ -47,7 +47,7 @@ export default function Kit({ kit, profile, journal, onBegin, onNext }) {
         {logged && (
           <p className="next-note">
             Saved. The next session will build on{" "}
-            {profile.learned?.length ? <strong>{profile.learned.map((l) => l.name).join(", ")}</strong> : "what you noted"}
+            {profile.learned?.length ? <strong>{andList(profile.learned.map((l) => l.name))}</strong> : "what you noted"},
             {" "}and bring things they haven’t seen yet.
           </p>
         )}
@@ -145,6 +145,8 @@ function Shelf({ title, hint, items, onWhy, poster }) {
     </section>
   );
 }
+
+const andList = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 export function Photo({ item, large }) {
   const [failed, setFailed] = useState(false);
