@@ -65,10 +65,12 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   const seedTags = resolved.flatMap((r) => (r.tag ? [r.tag] : []));
   const seedNames = [...seeds.map((s) => s.name), ...seedTags.map((t) => t.name.toLowerCase())];
 
-  // 2. Expand into each category from the seeds that speak to it, for the
-  //    older audience. Music and films lean on the media seeds and their
-  //    genres; films are kept to the years they grew up in; places come from
-  //    the home region and any dishes.
+  // 2. Expand into each category from the seeds that speak to it. Music leans
+  //    on the media seeds and their genres; films are kept to the years they
+  //    grew up in; places come from the home region and any dishes, for the
+  //    older audience. (Qloo's age signal pulled music and films towards what
+  //    older people watch today rather than what they grew up with, so the era
+  //    window does that job for media.)
   const decade = parseDecade(era);
   const media = seeds.filter((s) => /artist|movie|tv_show|book|person/.test(s.type));
   const mediaIds = (media.length ? media : seeds).map((s) => s.entity_id);
@@ -78,7 +80,7 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   const dishTags = seedTags.filter((t) => t.type?.includes("specialty_dish"));
 
   const expand = async (type: string, take: number, opts: Partial<Parameters<typeof qloo.insights>[0]>) => {
-    const res = await qloo.insights({ type, ageGroup: OLDER_AUDIENCE, take, ...opts });
+    const res = await qloo.insights({ type, take, ...opts });
     const note = res.locationDropped ? ` (Qloo doesn't know “${region}”, so without location)` : "";
     await step({ label: `Expanded seeds into ${type}s${note}`, request: res.request, count: res.entities.length });
     // Places only make sense near where they grew up.
@@ -87,7 +89,7 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   };
   const none = Promise.resolve([] as KitItem[]);
   const [music, films, places] = await Promise.all([
-    mediaIds.length ? expand("artist", 6, { signalEntities: mediaIds, signalTags: genreTags }) : none,
+    mediaIds.length ? expand("artist", 8, { signalEntities: mediaIds, signalTags: genreTags }) : none,
     mediaIds.length
       ? expand("movie", 4, {
           signalEntities: mediaIds,
@@ -98,6 +100,7 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
     region
       ? expand("place", 4, {
           filterLocation: region,
+          ageGroup: OLDER_AUDIENCE,
           signalTags: dishTags.map((t) => t.id),
           signalEntities: dishTags.length ? [] : seeds.map((s) => s.entity_id),
         })
