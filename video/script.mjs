@@ -5,7 +5,7 @@
 // Every line is read aloud and burned in as a caption.
 
 // Amazon Polly (neural or generative) in the project's AWS account, or macOS `say`.
-export const VOICE = { engine: "polly", name: "Ruth", polly: "generative" };
+export const VOICE = { engine: "polly", name: "Kajal", polly: "neural" };
 
 export const INTRO = [
   {

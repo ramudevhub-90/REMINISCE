@@ -119,8 +119,11 @@ const OVERLAY = `
         background: rgb(10 8 6 / .7); color: #d4b06a; font: 600 11px Inter, system-ui, sans-serif;
         letter-spacing: .1em; text-transform: uppercase; pointer-events: none; }
       html { scroll-behavior: smooth; }
-      .session { padding-bottom: 118px !important; }
-      .session .photo.large { width: 230px !important; }\`;
+      .session { padding-bottom: 96px !important; }
+      .session-card { gap: 9px !important; padding-top: 0 !important; }
+      .session .photo.large { width: 150px !important; border-radius: 16px !important; }
+      .session-desc { -webkit-line-clamp: 2 !important; font-size: 14px !important; }
+      .session-prompt { font-size: 18px !important; }\`;
     document.head.appendChild(s);
     const c = document.createElement("div"); c.id = "vcap"; document.body.appendChild(c);
     const t = document.createElement("div"); t.id = "vtag"; t.textContent = "Live app · d32wwoinn0chhg.cloudfront.net";
@@ -173,6 +176,7 @@ const ACTIONS = {
     await page.evaluate(() => window.scrollTo({ top: 0 }));
     await sleep(500);
     await button(page, "Begin the session").click();
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
   },
   async react(page) {
     const plan = ["Lit up", "A little", null, "Not today", "Lit up", null, null];
@@ -183,6 +187,7 @@ const ACTIONS = {
         await sleep(choice === "Lit up" ? 1700 : 700);
       }
       await button(page, "Next").click();
+      await page.evaluate(() => window.scrollTo({ top: 0 }));
       await sleep(choice === "Lit up" ? 900 : 450);
     }
     while (!(await page.locator(".summary").count())) {
@@ -281,7 +286,8 @@ function assemble(parts) {
   const out = path.join(OUT, "reminisce-demo.mp4");
   const ins = files.flatMap((f) => ["-i", f]);
   const cat = files.map((_, i) => `[${i}:v][${i}:a]`).join("") + `concat=n=${files.length}:v=1:a=1[v0][a0]`;
-  const fades = `[v0]fade=t=in:st=0:d=0.8,fade=t=out:st=${(total - 1).toFixed(2)}:d=1[v];[a0]afade=t=out:st=${(total - 1).toFixed(2)}:d=1[a]`;
+  // Normalise the voice to YouTube's loudness target, then fade in and out.
+  const fades = `[v0]fade=t=in:st=0:d=0.8,fade=t=out:st=${(total - 1).toFixed(2)}:d=1[v];[a0]loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_rates=48000:channel_layouts=stereo,afade=t=out:st=${(total - 1).toFixed(2)}:d=1[a]`;
   execFileSync(ffmpeg, [
     "-y", "-loglevel", "error", ...ins, "-filter_complex", `${cat};${fades}`, "-map", "[v]", "-map", "[a]",
     "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
