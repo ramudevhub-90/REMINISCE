@@ -12,7 +12,7 @@ import { DEMO, INTRO, OUTRO, VOICE } from "./script.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "out");
 const TMP = path.join(OUT, "tmp");
-const APP = "https://d32wwoinn0chhg.cloudfront.net/";
+const APP = process.env.APP ?? "https://d32wwoinn0chhg.cloudfront.net/";
 const SIZE = { width: 1920, height: 1080 };
 const PAD = 0.9; // seconds of quiet after each line
 mkdirSync(TMP, { recursive: true });
@@ -144,6 +144,16 @@ async function scrollTo(page, selector, offset = 90) {
 }
 
 const button = (page, name) => page.getByRole("button", { name, exact: true }).first();
+// Clicks inside the page itself: mouse coordinates can miss under the 1.5x zoom.
+const press = (page, selector, text) =>
+  page.evaluate(
+    ([sel, txt]) => {
+      const el = [...document.querySelectorAll(sel)].find((e) => !txt || e.textContent.includes(txt));
+      if (!el) throw new Error(`Nothing matches ${sel} ${txt ?? ""}`);
+      el.click();
+    },
+    [selector, text],
+  );
 
 // The same steps run twice: once quickly to warm Qloo's cache, then for real.
 const ACTIONS = {
@@ -219,7 +229,7 @@ const ACTIONS = {
   async timeline(page) {
     await page.evaluate(() => window.scrollTo({ top: 0 }));
     await sleep(900);
-    await page.locator(".world-link").click();
+    await press(page, ".world-link");
     await page.locator(".years").waitFor({ timeout: 180_000 });
     await sleep(1200);
   },
@@ -229,19 +239,20 @@ const ACTIONS = {
     await scrollTo(page, ".year-chapter:nth-child(3)", 110);
   },
   async group(page) {
-    await button(page, "Back to Baba").click();
-    await button(page, "Edit details").click();
+    await press(page, "button", "Back to Baba");
+    await sleep(500);
+    await press(page, "button", "Edit details");
     await sleep(500);
     await scrollTo(page, ".group-callout", 220);
     await sleep(1400);
-    await button(page, "Plan a group session").click();
+    await press(page, "button", "Plan a group session");
     await sleep(900);
-    await page.locator(".demo-group").click();
+    await press(page, ".demo-group");
     await sleep(700);
     await scrollTo(page, ".residents", 170);
   },
   async groupKit(page) {
-    await button(page, "Prepare the group session").click();
+    await press(page, "button", "Prepare the group session");
     await page.locator(".kit-hero").waitFor({ timeout: 240_000 });
     await sleep(1500);
     await scrollTo(page, ".shelf");
@@ -265,6 +276,9 @@ async function recordDemo(browser, items) {
   log("recording the app");
   const rec = await recorder(browser, "demo");
   const { page } = rec;
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(`${e.message} ${(e.stack ?? "").split("\n").slice(1, 4).join(" | ")}`));
+  page.on("console", (m) => m.type() === "error" && pageErrors.push(m.text()));
   await freshApp(page);
   await page.evaluate(OVERLAY);
   await sleep(800);
@@ -274,7 +288,19 @@ async function recordDemo(browser, items) {
     const at = rec.now() - start;
     await page.evaluate((text) => (document.getElementById("vcap").textContent = text), l.text);
     const t0 = Date.now();
-    await ACTIONS[l.id](page);
+    try {
+      await ACTIONS[l.id](page);
+    } catch (err) {
+      await page.screenshot({ path: path.join(TMP, `fail-${l.id}.png`) });
+      const state = await page.evaluate(() => ({
+        scrollY: window.scrollY,
+        height: document.documentElement.scrollHeight,
+        root: document.getElementById("root")?.innerHTML.length,
+        h1: document.querySelector("h1")?.textContent,
+      }));
+      console.log("FAILED at", l.id, JSON.stringify(state), "page errors:", JSON.stringify(pageErrors.slice(-5)));
+      throw err;
+    }
     const left = (l.dur + PAD) * 1000 - (Date.now() - t0);
     if (left > 0) await sleep(left);
     cues.push({ at, ...l });

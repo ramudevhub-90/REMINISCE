@@ -82,4 +82,10 @@ function startJob(args, onProgress) {
   });
 }
 
-const parse = (v) => (typeof v === "string" ? JSON.parse(v) : v);
+// Results arrive as JSON text: once over the subscription, twice when read
+// back through getKitJob. Decode until it's an object.
+function parse(v) {
+  let value = v;
+  for (let i = 0; i < 3 && typeof value === "string"; i++) value = JSON.parse(value);
+  return value;
+}
