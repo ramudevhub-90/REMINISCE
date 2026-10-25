@@ -99,6 +99,7 @@ function SessionCard({ card, reaction, onReact, onBack, onNext }) {
       <Photo item={card.item} large />
       <p className="eyebrow">{KIND_LABEL[card.kind] ?? ""}</p>
       <h1>{card.title}</h1>
+      {card.item?.description && <p className="session-desc">{card.item.description}</p>}
       <p className="session-prompt">{card.prompt}</p>
       {card.item && <PlayLink item={card.item} />}
       <div className="reactions" role="group" aria-label="How did they respond?">

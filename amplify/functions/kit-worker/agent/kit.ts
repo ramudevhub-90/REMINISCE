@@ -91,9 +91,14 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
   const mediaIds = unique([...(media.length ? media : seeds).map((s) => s.entity_id), ...learned.map((l) => l.id)]);
   // Don't repeat what they've already been shown, or the hits themselves.
   const exclude = unique([...avoid, ...learned.map((l) => l.id)]);
-  const genreTags = unique(
-    media.flatMap((s) => (s.tags ?? []).filter((t) => t.type === "urn:tag:genre").slice(0, 2).map((t) => t.id)),
-  ).slice(0, 4);
+  const genres = media.flatMap((s) => (s.tags ?? []).filter((t) => t.type === "urn:tag:genre").slice(0, 2));
+  const genreTags = unique(genres.map((t) => t.id)).slice(0, 4);
+  // Qloo can't filter singers by era, but its vocabulary has era genres
+  // ("Old Hindi"). For an older decade, look one up from the seeds' genres.
+  const eraTags = decade && decade <= 1985 ? await findEraGenres(unique(genres.map((t) => t.name)).slice(0, 2)) : [];
+  if (eraTags.length) {
+    await step({ label: `Found Qloo’s “${andNames(eraTags)}” genre for music from the ${era}`, found: eraTags[0].name });
+  }
   const dishTags = seedTags.filter((t) => t.type?.includes("specialty_dish"));
 
   const expand = async (type: string, take: number, opts: Partial<Parameters<typeof qloo.insights>[0]>) => {
@@ -105,8 +110,16 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
     return res.entities.map((ent) => toItem(ent, seedNames, learnedNames, res));
   };
   const none = Promise.resolve([] as KitItem[]);
+  // Era-filtered singers first; top up from the wider list if the era genre is thin.
+  const expandMusic = async () => {
+    const base = { signalEntities: mediaIds, signalTags: genreTags, exclude };
+    const picks = eraTags.length ? await expand("artist", 8, { ...base, filterTags: eraTags.map((t) => t.id) }) : [];
+    if (picks.length >= 5) return picks;
+    const wider = await expand("artist", 8, base);
+    return [...picks, ...wider.filter((w) => !picks.some((p) => p.id === w.id))].slice(0, 8);
+  };
   const [music, films, places] = await Promise.all([
-    mediaIds.length ? expand("artist", 8, { signalEntities: mediaIds, signalTags: genreTags, exclude }) : none,
+    mediaIds.length ? expandMusic() : none,
     mediaIds.length
       ? expand("movie", 4, {
           signalEntities: mediaIds,
@@ -183,6 +196,21 @@ function parseDecade(era: string) {
   const short = era.match(/\b(\d)0s\b/);
   return short ? 1900 + Number(short[1]) * 10 : undefined;
 }
+
+// Looks for music genres in Qloo named like "Old Hindi" or "Classic Jazz".
+async function findEraGenres(genreNames: string[]) {
+  const queries = genreNames.flatMap((g) => [`old ${g}`, `classic ${g}`]);
+  const results = await Promise.all(queries.map((query) => qloo.findTags({ query, take: 5 })));
+  const found = results.flatMap((r, i) => {
+    const genre = genreNames[Math.floor(i / 2)].toLowerCase();
+    return (r.tags ?? []).filter(
+      (t) => t.id.startsWith("urn:tag:genre:music:") && /\b(old|classic|golden|retro)\b/i.test(t.name) && t.name.toLowerCase().includes(genre),
+    );
+  });
+  return found.filter((t, i) => found.findIndex((x) => x.id === t.id) === i).slice(0, 2);
+}
+
+const andNames = (tags: { name: string }[]) => list(tags.map((t) => t.name));
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const unique = <T,>(xs: T[]) => [...new Set(xs)];

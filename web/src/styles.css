@@ -284,6 +284,10 @@ code {
 .session-card h1 { font-size: clamp(32px, 7vw, 48px); color: #fbf5ec; }
 .photo.large { width: min(320px, 70vw); aspect-ratio: 1; border-radius: 22px; box-shadow: 0 20px 60px rgb(0 0 0 / 0.5); }
 .session .monogram { background: linear-gradient(145deg, #3a2f24, #221b14); color: #e08a5f; font-size: 96px; }
+.session-desc {
+  color: #b9ab99; font-size: 15px; max-width: 460px; margin-top: -4px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
 .session-prompt { font: italic 400 21px/1.45 var(--serif); color: #e8dccb; max-width: 480px; }
 .session .play { color: #9cc3b6; font-size: 17px; }
 .reactions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }

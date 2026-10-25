@@ -52,6 +52,7 @@ export async function insights(opts: {
   type: string;
   signalEntities?: string[];
   signalTags?: string[];
+  filterTags?: string[];
   location?: string;
   filterLocation?: string;
   ageGroup?: string;
@@ -72,10 +73,11 @@ export async function insights(opts: {
 }
 
 async function runInsights(opts: Parameters<typeof insights>[0]) {
-  const { type, signalEntities = [], signalTags = [], location, filterLocation, ageGroup, releaseYears, exclude = [], take = 6 } = opts;
+  const { type, signalEntities = [], signalTags = [], filterTags = [], location, filterLocation, ageGroup, releaseYears, exclude = [], take = 6 } = opts;
   const args = ["insights", "--type", type, "--take", String(clamp(take))];
   if (signalEntities.length) args.push("--signal-entities", signalEntities.join(","));
   if (signalTags.length) args.push("--signal-tags", signalTags.join(","));
+  if (filterTags.length) args.push("--filter-tags", filterTags.join(","));
   if (location) args.push("--signal-location", location);
   if (filterLocation) args.push("--filter-location", filterLocation);
   const params: Record<string, string | number> = {};
