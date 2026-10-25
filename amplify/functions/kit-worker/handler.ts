@@ -9,16 +9,19 @@ import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { env } from "$amplify/env/kit-worker";
 import type { Schema } from "../../data/resource";
 import { buildKit, type KitInput, type TraceStep } from "./agent/kit";
-import { harnessCheck } from "./qloo/index";
+import { harnessCheck, probe } from "./qloo/index";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env);
 Amplify.configure(resourceConfig, libraryOptions);
 const client = generateClient<Schema>({ authMode: "iam" });
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
 
-export const handler = async (event: Parameters<SQSHandler>[0] | { check: true }) => {
-  // Direct invocation used to verify the Qloo harness runs in this runtime.
+type DirectEvent = { check: true } | { probe: string[] };
+
+export const handler = async (event: Parameters<SQSHandler>[0] | DirectEvent) => {
+  // Direct invocations (IAM only) to verify and tune the Qloo harness.
   if ("check" in event) return harnessCheck();
+  if ("probe" in event) return probe(event.probe);
 
   for (const record of event.Records) {
     const { jobId, input } = JSON.parse(record.body) as { jobId: string; input: KitInput };

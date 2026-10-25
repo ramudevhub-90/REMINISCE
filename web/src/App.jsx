@@ -160,11 +160,13 @@ function Kit({ kit, name }) {
           <Item key={item.id} item={item} />
         ))}
       </Section>
-      <Section title={kit.food.title} hint={kit.food.why}>
-        {kit.food.places.map((item) => (
-          <Item key={item.id} item={item} />
-        ))}
-      </Section>
+      {kit.food && (
+        <Section title={kit.food.title} hint={kit.food.places.length ? kit.food.why : null}>
+          {kit.food.places.map((item) => (
+            <Item key={item.id} item={item} />
+          ))}
+        </Section>
+      )}
       <section className="card">
         <h2>Conversation prompts</h2>
         <ol className="prompts">
@@ -200,15 +202,37 @@ function Section({ title, hint, children }) {
   );
 }
 
+// Quick ways to actually play the suggestion during a session.
+function MediaLink({ item }) {
+  if (item.spotifyId) {
+    return (
+      <a className="media" href={`https://open.spotify.com/artist/${item.spotifyId}`} target="_blank" rel="noreferrer">
+        Open in Spotify
+      </a>
+    );
+  }
+  if (item.type?.endsWith("movie")) {
+    const q = encodeURIComponent(`${item.name} ${item.year ?? ""} song`);
+    return (
+      <a className="media" href={`https://www.youtube.com/results?search_query=${q}`} target="_blank" rel="noreferrer">
+        Find a clip on YouTube
+      </a>
+    );
+  }
+  return null;
+}
+
 function Item({ item }) {
   const [open, setOpen] = useState(false);
   return (
     <li className="item">
       <div className="item-head">
-        <div>
+        {item.image && <img className="thumb" src={item.image} alt="" loading="lazy" />}
+        <div className="item-body">
           <strong>{item.name}</strong>
           {item.year && <span className="muted"> ({item.year})</span>}
           {item.tags.length > 0 && <div className="tags">{item.tags.join(" · ")}</div>}
+          <MediaLink item={item} />
         </div>
         <button className="why-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
           Why this?

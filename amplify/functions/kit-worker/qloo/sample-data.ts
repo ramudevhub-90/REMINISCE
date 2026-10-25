@@ -68,6 +68,6 @@ export const INSIGHTS: Record<string, QlooEntity[]> = {
 export const TAGS: QlooTag[] = [
   { id: "urn:tag:genre:place:restaurant:bengali", name: "Bengali", type: "urn:tag:genre:place" },
   { id: "urn:tag:genre:place:restaurant:seafood", name: "Seafood", type: "urn:tag:genre:place" },
-  { id: "urn:tag:keyword:place:fish_curry", name: "Fish curry", type: "urn:tag:keyword:place" },
+  { id: "urn:tag:specialty_dish:place:fish_curry", name: "Fish Curry", type: "urn:tag:specialty_dish:place" },
   { id: "urn:tag:genre:media:hindi_cinema", name: "Hindi cinema", type: "urn:tag:genre:media" },
 ];

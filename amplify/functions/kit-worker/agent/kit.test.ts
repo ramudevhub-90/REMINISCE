@@ -9,6 +9,6 @@ test("builds a kit with evidence from sample Qloo data", async () => {
   assert.ok(kit.films.length > 0);
   assert.match(kit.playlist[0].why.statement, /People who love Kishore Kumar, Guide and fish curry tend to also love/);
   assert.match(kit.playlist[0].why.request, /^qloo api insights --type artist/);
-  assert.deepEqual(kit.seeds.map((s) => s.type), ["urn:entity:artist", "urn:entity:movie", "urn:tag:keyword:place"]);
+  assert.deepEqual(kit.seeds.map((s) => s.type), ["urn:entity:artist", "urn:entity:movie", "urn:tag:specialty_dish:place"]);
   assert.ok(kit.trace.length >= 6);
 });

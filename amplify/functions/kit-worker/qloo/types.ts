@@ -11,7 +11,13 @@ export interface QlooEntity {
   popularity?: number;
   query?: { affinity?: number };
   tags?: QlooTag[];
-  properties?: { release_year?: number; address?: string };
+  properties?: {
+    release_year?: number;
+    address?: string;
+    image?: string;
+    spotify_id?: string;
+    description?: string;
+  };
 }
 
 export interface QlooResult {
@@ -20,4 +26,5 @@ export interface QlooResult {
   source: "sample" | "live";
   request: string;
   cached?: boolean;
+  locationDropped?: boolean;
 }

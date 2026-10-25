@@ -45,22 +45,43 @@ export async function search({ query, type, take = 3 }: { query: string; type?: 
 
 /**
  * Taste-graph expansion: entities of `type` with high affinity for the signals.
- * ageGroup and location narrow results to the audience the person belongs to.
+ * ageGroup and location narrow results to the audience the person belongs to;
+ * releaseYears keeps films to the years they'd remember.
  */
 export async function insights(opts: {
   type: string;
   signalEntities?: string[];
   signalTags?: string[];
   location?: string;
+  filterLocation?: string;
   ageGroup?: string;
+  releaseYears?: { min?: number; max?: number };
   take?: number;
 }) {
-  const { type, signalEntities = [], signalTags = [], location, ageGroup, take = 6 } = opts;
+  try {
+    return await runInsights(opts);
+  } catch (err) {
+    // Small towns may not be in Qloo's location index; that's a 400. Retry
+    // without the location rather than failing the whole kit.
+    const hasLocation = Boolean(opts.location || opts.filterLocation);
+    if (!hasLocation || !(err instanceof QlooError) || !/400/.test(err.message)) throw err;
+    const res = await runInsights({ ...opts, location: undefined, filterLocation: undefined });
+    return { ...res, locationDropped: true };
+  }
+}
+
+async function runInsights(opts: Parameters<typeof insights>[0]) {
+  const { type, signalEntities = [], signalTags = [], location, filterLocation, ageGroup, releaseYears, take = 6 } = opts;
   const args = ["insights", "--type", type, "--take", String(clamp(take))];
   if (signalEntities.length) args.push("--signal-entities", signalEntities.join(","));
   if (signalTags.length) args.push("--signal-tags", signalTags.join(","));
   if (location) args.push("--signal-location", location);
-  if (ageGroup) args.push("--params", JSON.stringify({ "signal.demographics.age": ageGroup }));
+  if (filterLocation) args.push("--filter-location", filterLocation);
+  const params: Record<string, string | number> = {};
+  if (ageGroup) params["signal.demographics.age"] = ageGroup;
+  if (releaseYears?.min) params["filter.release_year.min"] = releaseYears.min;
+  if (releaseYears?.max) params["filter.release_year.max"] = releaseYears.max;
+  if (Object.keys(params).length) args.push("--params", JSON.stringify(params));
   return cached(args, () => sampleInsights(type, signalEntities, take));
 }
 
@@ -81,6 +102,33 @@ export async function harnessCheck() {
     );
   });
   return { node: process.version, binExists: existsSync(QLOO_BIN), ...out };
+}
+
+/**
+ * Runs one read-only harness command with the real key and returns its raw
+ * output. Only reachable by invoking the Lambda directly (IAM), for tuning.
+ */
+export async function probe(args: string[]) {
+  if (!["search", "insights", "tags", "types", "entity"].includes(args[0])) throw new Error("Unsupported probe");
+  apiKey = undefined; // re-read, in case the key was just rotated
+  const key = await loadKey();
+  return new Promise((resolve) => {
+    execFile(
+      process.execPath,
+      [QLOO_BIN, "api", ...args, "--json", "--quiet"],
+      { timeout: 25_000, env: { ...process.env, QLOO_API_KEY: key }, maxBuffer: 4 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        let summary: unknown;
+        try {
+          const body = JSON.parse(stdout);
+          summary = body.error ? body : normalize(body);
+        } catch {
+          summary = stdout.slice(0, 4_000);
+        }
+        resolve({ hasKey: Boolean(key), code: err ? ((err as { code?: number }).code ?? 1) : 0, summary, stderr: stderr.slice(0, 1_000) });
+      },
+    );
+  });
 }
 
 async function cached(args: string[], sample: () => Pick<QlooResult, "entities" | "tags">): Promise<QlooResult> {
@@ -124,7 +172,7 @@ async function runCli(args: string[]): Promise<Pick<QlooResult, "entities" | "ta
     execFile(
       process.execPath,
       [QLOO_BIN, "api", ...args, "--json", "--quiet"],
-      { timeout: 20_000, env: { ...process.env, QLOO_API_KEY: key } },
+      { timeout: 20_000, env: { ...process.env, QLOO_API_KEY: key }, maxBuffer: 8 * 1024 * 1024 },
       (err, stdout) => {
         let body: any;
         try {
@@ -141,11 +189,36 @@ async function runCli(args: string[]): Promise<Pick<QlooResult, "entities" | "ta
   });
 }
 
-// The CLI wraps results differently per command; flatten to { entities, tags }.
+// The CLI returns bare arrays whose items differ per command (search uses
+// `types`, insights uses `subtype`, tags use `tag_id`). Flatten to the small
+// shape the agent uses, dropping the bulky fields (akas, websites, ...).
 function normalize(body: any): Pick<QlooResult, "entities" | "tags"> {
   const results = body.results ?? body;
-  if (Array.isArray(results)) return { entities: results };
-  return { entities: results.entities ?? [], tags: results.tags ?? body.tags };
+  const items: any[] = Array.isArray(results) ? results : (results.entities ?? results.tags ?? []);
+  const isTag = (item: any) => !item.entity_id && (item.tag_id || item.id);
+  return {
+    entities: items.filter((item) => !isTag(item)).map(toEntity),
+    tags: items.filter(isTag).map((t) => ({ id: t.tag_id ?? t.id, name: t.name, type: t.type ?? t.subtype })),
+  };
+}
+
+function toEntity(item: any): QlooEntity {
+  const p = item.properties ?? {};
+  return {
+    entity_id: item.entity_id,
+    name: item.name,
+    type: item.subtype ?? item.types?.[0] ?? item.type,
+    popularity: item.popularity,
+    query: item.query?.affinity === undefined ? undefined : { affinity: item.query.affinity },
+    tags: (item.tags ?? []).slice(0, 8).map((t: any) => ({ id: t.tag_id ?? t.id, name: t.name, type: t.type })),
+    properties: {
+      release_year: p.release_year,
+      address: p.address,
+      image: p.image?.url,
+      spotify_id: p.external?.spotify?.id ?? p.external?.spotify?.[0]?.id,
+      description: p.short_description ?? p.description,
+    },
+  };
 }
 
 function sampleSearch(query: string, type: string | undefined, take: number) {
