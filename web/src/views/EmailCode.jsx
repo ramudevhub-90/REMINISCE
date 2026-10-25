@@ -69,7 +69,6 @@ export default function EmailCode() {
   if (step === "email") {
     return (
       <form className="paper form email-code" onSubmit={sendCode}>
-        <h2 className="section-label">Sign in or create an account</h2>
         <label className="field">
           <span>Your email</span>
           <input
@@ -85,7 +84,7 @@ export default function EmailCode() {
         <button className="primary" disabled={busy || !email.trim()}>
           {busy ? "Sending…" : "Email me a code"}
         </button>
-        <p className="muted small">No password needed. We’ll email you a 6-digit code each time you sign in.</p>
+        <p className="muted small">No password. We’ll email you a 6-digit code.</p>
       </form>
     );
   }

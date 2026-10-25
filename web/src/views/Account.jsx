@@ -3,7 +3,20 @@ import EmailCode from "./EmailCode.jsx";
 
 // Guests see sign-in / create account. Signed-in carers see their people,
 // can switch between them or add someone new, sign out, or delete everything.
-export default function Account({ user, account, people, currentId, onChooseKind, onOpen, onAdd, onImport, onSignOut, onDeleteAll }) {
+export default function Account({
+  user,
+  account,
+  accountLoaded,
+  onRetry,
+  people,
+  currentId,
+  onChooseKind,
+  onOpen,
+  onAdd,
+  onImport,
+  onSignOut,
+  onDeleteAll,
+}) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [orgName, setOrgName] = useState(account?.orgName ?? "");
@@ -30,20 +43,27 @@ export default function Account({ user, account, people, currentId, onChooseKind
 
   if (!user) {
     return (
-      <div className="account">
-        <section className="hero compact">
-          <p className="eyebrow">Your account</p>
-          <h1>
-            Keep what you learn, <em>on every device.</em>
-          </h1>
-          <p className="lede">
-            With an account, each person’s journal, favourites and taste portrait are saved securely, so only you can see
-            them. Anything you’ve already done on this device comes with you.
-          </p>
-        </section>
-        <div className="auth-box">
-          <EmailCode />
-        </div>
+      <div className="auth-page">
+        <span className="mark auth-mark" aria-hidden="true" />
+        <h1>Sign in to Reminisce</h1>
+        <p className="muted">New here? The same steps create your free account.</p>
+        <EmailCode />
+        <p className="muted small auth-note">
+          Your people, journals and favourites are saved privately to your account and follow you to any device.
+        </p>
+      </div>
+    );
+  }
+
+  if (!accountLoaded && !choosing) {
+    return (
+      <div className="auth-page">
+        <span className="mark auth-mark" aria-hidden="true" />
+        <h1>Loading your account…</h1>
+        <p className="muted">This takes a moment.</p>
+        <button className="link" onClick={onRetry}>
+          Taking too long? Try again
+        </button>
       </div>
     );
   }

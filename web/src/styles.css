@@ -455,3 +455,14 @@ label.kind-card input[type="radio"] { position: absolute; top: 20px; left: 22px;
 label.kind-card:hover { border-color: var(--gold); }
 label.kind-card.selected { border: 2px solid var(--accent); box-shadow: 0 0 0 4px rgb(156 66 33 / 0.12); }
 .kind-org { max-width: 420px; }
+
+/* Centred sign-in page */
+.auth-page {
+  max-width: 440px; margin: clamp(32px, 8vh, 80px) auto 40px; display: grid; gap: 12px;
+  justify-items: center; text-align: center;
+}
+.auth-page h1 { font-size: clamp(30px, 6vw, 40px); }
+.auth-mark { width: 44px; height: 44px; margin-bottom: 4px; }
+.auth-page .email-code { width: 100%; text-align: left; margin-top: 12px; }
+.auth-page .email-code .primary { width: 100%; }
+.auth-note { max-width: 360px; margin-top: 4px; }

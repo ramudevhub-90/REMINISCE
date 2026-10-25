@@ -41,6 +41,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [people, setPeople] = useState([]);
   const [account, setAccount] = useState(null);
+  const [accountLoaded, setAccountLoaded] = useState(false);
   const [editing, setEditing] = useState("new"); // "new" or "current", for the person form
   const [returnTo, setReturnTo] = useState("account"); // where "Save resident" goes back to
   const careHome = account?.kind === "carehome";
@@ -65,9 +66,16 @@ export default function App() {
   async function signedIn() {
     const attrs = await fetchUserAttributes().catch(() => ({}));
     setUser({ email: attrs.email ?? "" });
-    const acct = await cloud.getAccount().catch(() => null);
-    setAccount(acct);
-    if (!acct) setView("account");
+    // Only ask "who are you caring for?" when the account truly has no answer
+    // yet; a failed load right after sign-in must not look like a new account.
+    let acct;
+    for (let attempt = 0; attempt < 3 && acct === undefined; attempt++) {
+      acct = await cloud.getAccount().catch(() => undefined);
+      if (acct === undefined) await new Promise((r) => setTimeout(r, 800));
+    }
+    setAccount(acct ?? null);
+    setAccountLoaded(acct !== undefined);
+    if (acct === null) setView("account");
     const local = live.current;
     let list = await cloud.listPeople();
     if (local.profile?.loves?.length && !local.profile.cloudId) {
@@ -110,6 +118,7 @@ export default function App() {
   function forgetDevice() {
     setUser(null);
     setAccount(null);
+    setAccountLoaded(false);
     setPeople([]);
     adoptPerson({ profile: EMPTY, kit: null, journal: [], timeline: null });
     adoptGroup({ group: NO_GROUP, kit: null, journal: [] });
@@ -448,6 +457,8 @@ export default function App() {
           <Account
             user={user}
             account={account}
+            accountLoaded={accountLoaded}
+            onRetry={signedIn}
             onChooseKind={chooseKind}
             people={people}
             currentId={profile.cloudId}
