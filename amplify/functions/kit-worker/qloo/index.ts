@@ -56,6 +56,7 @@ export async function insights(opts: {
   filterLocation?: string;
   ageGroup?: string;
   releaseYears?: { min?: number; max?: number };
+  exclude?: string[];
   take?: number;
 }) {
   try {
@@ -71,7 +72,7 @@ export async function insights(opts: {
 }
 
 async function runInsights(opts: Parameters<typeof insights>[0]) {
-  const { type, signalEntities = [], signalTags = [], location, filterLocation, ageGroup, releaseYears, take = 6 } = opts;
+  const { type, signalEntities = [], signalTags = [], location, filterLocation, ageGroup, releaseYears, exclude = [], take = 6 } = opts;
   const args = ["insights", "--type", type, "--take", String(clamp(take))];
   if (signalEntities.length) args.push("--signal-entities", signalEntities.join(","));
   if (signalTags.length) args.push("--signal-tags", signalTags.join(","));
@@ -81,8 +82,9 @@ async function runInsights(opts: Parameters<typeof insights>[0]) {
   if (ageGroup) params["signal.demographics.age"] = ageGroup;
   if (releaseYears?.min) params["filter.release_year.min"] = releaseYears.min;
   if (releaseYears?.max) params["filter.release_year.max"] = releaseYears.max;
+  if (exclude.length) params["filter.exclude.entities"] = exclude.join(",");
   if (Object.keys(params).length) args.push("--params", JSON.stringify(params));
-  return cached(args, () => sampleInsights(type, signalEntities, take));
+  return cached(args, () => sampleInsights(type, [...signalEntities, ...exclude], take));
 }
 
 /** Find tag URNs for a concept such as "fish curry". */

@@ -17,7 +17,10 @@ export default function Home({ initial, onSubmit }) {
     e.preventDefault();
     const loves = draft.trim() && form.loves.length < 5 ? [...form.loves, draft.trim()] : form.loves;
     setDraft("");
-    if (loves.length) onSubmit({ ...form, loves });
+    // A different person (name, place or decade) starts the learning afresh;
+    // adding or removing loves keeps what past sessions taught us.
+    const same = form.name === initial.name && form.region === initial.region && form.era === initial.era;
+    if (loves.length) onSubmit({ ...form, loves, ...(same ? {} : { learned: [], shown: [], fresh: true }) });
   }
 
   return (
@@ -56,7 +59,7 @@ export default function Home({ initial, onSubmit }) {
         </h2>
         <div className="persona-row">
           {PERSONAS.map((p) => (
-            <button key={p.name} className="persona" onClick={() => onSubmit(p)}>
+            <button key={p.name} className="persona" onClick={() => onSubmit({ ...p, learned: [], shown: [], fresh: true })}>
               <span className="persona-initial" aria-hidden="true">
                 {p.name[0]}
               </span>

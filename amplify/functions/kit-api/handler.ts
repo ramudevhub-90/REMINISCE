@@ -38,12 +38,19 @@ export const handler = async (event: Event) => {
 };
 
 async function startKit(args: Record<string, any>, requester: string | null) {
-  const { jobId, region, era, loves } = args as { jobId: string; region?: string; era?: string; loves: string[] };
+  const { jobId, region, era, loves, learned, avoidIds } = args as {
+    jobId: string;
+    region?: string;
+    era?: string;
+    loves: string[];
+    learned?: unknown;
+    avoidIds?: string[] | null;
+  };
   if (!requester) throw new Error("Unauthorized");
   if (!UUID.test(jobId)) throw new Error("jobId must be a UUID.");
 
   // Only aggregate taste seeds are accepted. Names stay on the carer's device.
-  const input = {
+  const input: Record<string, unknown> & { loves: string[] } = {
     region: (region ?? "").trim().slice(0, 80),
     era: (era ?? "").trim().slice(0, 20),
     loves: loves
@@ -52,6 +59,7 @@ async function startKit(args: Record<string, any>, requester: string | null) {
       .slice(0, 5),
   };
   if (!input.loves.length) throw new Error("Add at least one thing they love.");
+  Object.assign(input, { learned: parseLearned(learned), avoid: (avoidIds ?? []).filter((id) => UUID.test(id)).slice(0, 40) });
 
   const now = new Date().toISOString();
   await db.send(
@@ -71,4 +79,21 @@ async function getKitJob(id: string, caller: string | null) {
   if (!caller || job.requester !== caller) throw new Error("Unauthorized");
   const json = (v: unknown) => (v === undefined ? null : JSON.stringify(v));
   return { id: job.id, status: job.status, steps: json(job.steps), result: json(job.result), error: job.error ?? null };
+}
+
+// Learned items are Qloo entity ids with names, at most 8; anything else is dropped.
+function parseLearned(value: unknown) {
+  let list: unknown = value;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((x) => x && UUID.test(String(x.id)) && typeof x.name === "string")
+    .slice(0, 8)
+    .map((x) => ({ id: String(x.id), name: String(x.name).slice(0, 80), type: String(x.type ?? "").slice(0, 40) }));
 }

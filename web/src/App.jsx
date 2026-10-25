@@ -6,7 +6,9 @@ import Building from "./views/Building.jsx";
 import Kit from "./views/Kit.jsx";
 import Session from "./views/Session.jsx";
 
-const EMPTY = { name: "", region: "", era: "", loves: [] };
+const EMPTY = { name: "", region: "", era: "", loves: [], learned: [], shown: [] };
+
+const kitIds = (kit) => [...kit.playlist, ...kit.films].map((i) => i.id);
 
 export default function App() {
   const [profile, setProfile] = useState(() => loadProfile() ?? EMPTY);
@@ -15,7 +17,11 @@ export default function App() {
   const [view, setView] = useState(() => (loadKit() ? "kit" : "home"));
   const [build, setBuild] = useState({ steps: [], error: "" });
 
-  async function start(p) {
+  async function start({ fresh, ...p }) {
+    if (fresh) {
+      setJournal([]);
+      saveJournal([]);
+    }
     saveProfile(p);
     setProfile(p);
     setBuild({ steps: [], error: "" });
@@ -23,7 +29,7 @@ export default function App() {
     window.scrollTo({ top: 0 });
     try {
       // The name never leaves the device: only taste seeds are sent.
-      const result = await buildKit({ region: p.region, era: p.era, loves: p.loves }, (message) =>
+      const result = await buildKit({ region: p.region, era: p.era, loves: p.loves, learned: p.learned, shown: p.shown }, (message) =>
         setBuild((b) => ({ ...b, steps: [...b.steps, message] })),
       );
       setKit(result);
@@ -34,17 +40,30 @@ export default function App() {
     }
   }
 
+  // The weekly loop: what lit them up becomes a Qloo signal for the next kit,
+  // and everything already shown is left out so the next kit brings new things.
   function finishSession(entry) {
     const next = [entry, ...journal].slice(0, 50);
     setJournal(next);
     saveJournal(next);
+    const hits = entry.items.filter((i) => i.reaction === "lit").map((i) => ({ ...i, date: entry.date }));
+    const learned = [...hits, ...(profile.learned ?? [])].filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i).slice(0, 8);
+    const shown = [...new Set([...kitIds(kit), ...(profile.shown ?? [])])].slice(0, 40);
+    const updated = { ...profile, learned, shown };
+    setProfile(updated);
+    saveProfile(updated);
     setView("kit");
+    window.scrollTo({ top: 0 });
   }
 
   function newPerson() {
+    if (journal.length && !window.confirm("Start with someone new? This clears the current journal on this device.")) return;
     setProfile(EMPTY);
+    saveProfile(EMPTY);
     setKit(null);
     saveKit(null);
+    setJournal([]);
+    saveJournal([]);
     setView("home");
   }
 
@@ -77,7 +96,7 @@ export default function App() {
           <Building name={profile.name} steps={build.steps} error={build.error} onBack={() => setView("home")} />
         )}
         {view === "kit" && kit && (
-          <Kit kit={kit} profile={profile} journal={journal} onBegin={() => setView("session")} onRebuild={() => start(profile)} />
+          <Kit kit={kit} profile={profile} journal={journal} onBegin={() => setView("session")} onNext={() => start(profile)} />
         )}
       </main>
 

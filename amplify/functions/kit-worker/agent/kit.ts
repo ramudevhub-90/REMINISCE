@@ -5,10 +5,19 @@ import type { QlooEntity, QlooResult } from "../qloo/index";
 
 const OLDER_AUDIENCE = "55_and_older";
 
+export interface Learned {
+  id: string;
+  name: string;
+  type?: string;
+}
+
 export interface KitInput {
   region: string;
   era: string;
   loves: string[];
+  // From the carer's journal: what lit them up before, and what was already shown.
+  learned?: Learned[];
+  avoid?: string[];
 }
 
 export interface TraceStep {
@@ -32,12 +41,16 @@ export interface KitItem {
 
 type OnStep = (step: TraceStep) => Promise<void> | void;
 
-export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep = () => {}) {
+export async function buildKit({ region, era, loves, learned = [], avoid = [] }: KitInput, onStep: OnStep = () => {}) {
   const trace: TraceStep[] = [];
   const step = async (s: TraceStep) => {
     trace.push(s);
     await onStep(s);
   };
+
+  if (learned.length) {
+    await step({ label: `Remembered from the journal: ${list(learned.map((l) => l.name))} lit them up` });
+  }
 
   // 1. Resolve each free-text seed. Look it up as an entity and as a tag in
   //    parallel: a dish like "fish curry" is a tag on places, not an entity.
@@ -64,6 +77,7 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   const seeds = resolved.flatMap((r) => (r.entity ? [r.entity] : []));
   const seedTags = resolved.flatMap((r) => (r.tag ? [r.tag] : []));
   const seedNames = [...seeds.map((s) => s.name), ...seedTags.map((t) => t.name.toLowerCase())];
+  const learnedNames = learned.map((l) => l.name);
 
   // 2. Expand into each category from the seeds that speak to it. Music leans
   //    on the media seeds and their genres; films are kept to the years they
@@ -73,7 +87,10 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   //    window does that job for media.)
   const decade = parseDecade(era);
   const media = seeds.filter((s) => /artist|movie|tv_show|book|person/.test(s.type));
-  const mediaIds = (media.length ? media : seeds).map((s) => s.entity_id);
+  // Past hits are Qloo entities already, so they join the signals directly.
+  const mediaIds = unique([...(media.length ? media : seeds).map((s) => s.entity_id), ...learned.map((l) => l.id)]);
+  // Don't repeat what they've already been shown, or the hits themselves.
+  const exclude = unique([...avoid, ...learned.map((l) => l.id)]);
   const genreTags = unique(
     media.flatMap((s) => (s.tags ?? []).filter((t) => t.type === "urn:tag:genre").slice(0, 2).map((t) => t.id)),
   ).slice(0, 4);
@@ -85,14 +102,15 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
     await step({ label: `Expanded seeds into ${type}s${note}`, request: res.request, count: res.entities.length });
     // Places only make sense near where they grew up.
     if (type === "place" && res.locationDropped) return [];
-    return res.entities.map((ent) => toItem(ent, seedNames, res));
+    return res.entities.map((ent) => toItem(ent, seedNames, learnedNames, res));
   };
   const none = Promise.resolve([] as KitItem[]);
   const [music, films, places] = await Promise.all([
-    mediaIds.length ? expand("artist", 8, { signalEntities: mediaIds, signalTags: genreTags }) : none,
+    mediaIds.length ? expand("artist", 8, { signalEntities: mediaIds, signalTags: genreTags, exclude }) : none,
     mediaIds.length
       ? expand("movie", 4, {
           signalEntities: mediaIds,
+          exclude,
           releaseYears: decade ? { min: decade - 5, max: decade + 20 } : undefined,
         })
       : none,
@@ -103,6 +121,7 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
           ageGroup: OLDER_AUDIENCE,
           signalTags: dishTags.map((t) => t.id),
           signalEntities: dishTags.length ? [] : seeds.map((s) => s.entity_id),
+          exclude,
         })
       : none,
   ]);
@@ -112,6 +131,7 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   const cuisine = topTag(places) ?? "home-style";
   return {
     source: qloo.mode(),
+    learned: learnedNames,
     seeds: [...seeds.map((s) => ({ name: s.name, type: s.type })), ...seedTags.map((t) => ({ name: t.name, type: t.type }))],
     playlist: music,
     films,
@@ -127,7 +147,8 @@ export async function buildKit({ region, era, loves }: KitInput, onStep: OnStep 
   };
 }
 
-function toItem(ent: QlooEntity, seedNames: string[], res: QlooResult): KitItem {
+function toItem(ent: QlooEntity, seedNames: string[], learnedNames: string[], res: QlooResult): KitItem {
+  const sparked = learnedNames.length ? `, and ${list(learnedNames)}, who lit them up in past sessions,` : "";
   return {
     id: ent.entity_id,
     name: ent.name,
@@ -138,7 +159,7 @@ function toItem(ent: QlooEntity, seedNames: string[], res: QlooResult): KitItem 
     spotifyId: ent.properties?.spotify_id,
     description: ent.properties?.description,
     why: {
-      statement: `People who love ${list(seedNames)} tend to also love ${ent.name}.`,
+      statement: `People who love ${list(seedNames)}${sparked} tend to also love ${ent.name}.`,
       affinity: ent.query?.affinity,
       request: res.request,
       source: res.source,

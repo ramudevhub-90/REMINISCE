@@ -224,6 +224,14 @@ input:focus, textarea:focus { border-color: var(--sage); outline: none; box-shad
   padding-left: 18px; border-left: 3px solid var(--gold);
 }
 
+.next-note { margin-top: 16px; color: var(--ink-soft); font-size: 16px; max-width: 560px; }
+.learning { margin: 0; display: grid; gap: 16px; }
+.learning div { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: baseline; }
+.learning dt { color: var(--gold); font-weight: 600; font-size: 14px; letter-spacing: 0.04em; }
+.learning dd { margin: 0; color: var(--ink-soft); }
+.lit-chip { padding: 6px 14px !important; background: var(--paper-2); border: 1px solid var(--gold); }
+@media (max-width: 560px) { .learning div { grid-template-columns: 1fr; gap: 4px; } }
+
 .journal { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .journal li { display: flex; gap: 16px; align-items: baseline; }
 .journal time { flex: none; width: 64px; color: var(--gold); font-weight: 600; font-size: 14px; }

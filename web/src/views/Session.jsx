@@ -32,7 +32,11 @@ export default function Session({ kit, name, onClose, onFinish }) {
 
   function save() {
     const pick = (id) => cards.filter((c) => reactions[c.key] === id).map((c) => c.title);
-    onFinish({ date: new Date().toISOString(), sparked: pick("lit"), some: pick("some"), quiet: pick("none"), note: note.trim() });
+    // Keep the Qloo ids of songs and films so the next kit can build on them.
+    const items = cards
+      .filter((c) => c.kind !== "food")
+      .map((c) => ({ id: c.item.id, name: c.item.name, type: c.item.type, reaction: reactions[c.key] ?? null }));
+    onFinish({ date: new Date().toISOString(), sparked: pick("lit"), some: pick("some"), quiet: pick("none"), note: note.trim(), items });
   }
 
   return (

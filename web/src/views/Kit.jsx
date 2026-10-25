@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { playLink } from "../media.js";
 
-export default function Kit({ kit, profile, journal, onBegin, onRebuild }) {
+export default function Kit({ kit, profile, journal, onBegin, onNext }) {
   const [why, setWhy] = useState(null);
   const name = profile.name || "your person";
+  // Once a session on this kit is logged, the next step is a new kit.
+  const logged = kit.playlist.some((i) => profile.shown?.includes(i.id));
+  const sessionNo = journal.length + (logged ? 0 : 1);
 
   return (
     <div className="kit">
@@ -13,22 +16,41 @@ export default function Kit({ kit, profile, journal, onBegin, onRebuild }) {
 
       <section className="kit-hero">
         <p className="eyebrow">
-          {[profile.region, profile.era].filter(Boolean).join(" · ") || "Today’s session"}
+          {[`Session ${sessionNo}`, profile.region, profile.era].filter(Boolean).join(" · ")}
         </p>
         <h1>
           A session for <em>{name}</em>
         </h1>
         <p className="seeds">
           Built from what they love: {kit.seeds.map((s) => s.name).join(", ")}
+          {kit.learned?.length > 0 && <>, and what lit them up last time: {kit.learned.join(", ")}</>}
         </p>
-        <div className="kit-actions">
-          <button className="primary large" onClick={onBegin}>
-            Begin the session
-          </button>
-          <button className="ghost" onClick={onRebuild}>
-            Refresh suggestions
-          </button>
-        </div>
+        {logged ? (
+          <div className="kit-actions">
+            <button className="primary large" onClick={onNext}>
+              Plan the next session
+            </button>
+            <button className="ghost" onClick={onBegin}>
+              Repeat this session
+            </button>
+          </div>
+        ) : (
+          <div className="kit-actions">
+            <button className="primary large" onClick={onBegin}>
+              Begin the session
+            </button>
+            <button className="ghost" onClick={onNext}>
+              Refresh suggestions
+            </button>
+          </div>
+        )}
+        {logged && (
+          <p className="next-note">
+            Saved. The next session will build on{" "}
+            {profile.learned?.length ? <strong>{profile.learned.map((l) => l.name).join(", ")}</strong> : "what you noted"}
+            {" "}and bring things they haven’t seen yet.
+          </p>
+        )}
       </section>
 
       {kit.playlist.length > 0 && (
@@ -72,6 +94,7 @@ export default function Kit({ kit, profile, journal, onBegin, onRebuild }) {
         </ul>
       </section>
 
+      {journal.length > 0 && <Learning profile={profile} journal={journal} />}
       {journal.length > 0 && <Journal journal={journal} />}
 
       <details className="trace">
@@ -182,6 +205,49 @@ function WhySheet({ item, name, onClose }) {
         </button>
       </div>
     </div>
+  );
+}
+
+// The loop made visible: where we started, and what each session taught us.
+function Learning({ profile, journal }) {
+  const setAside = [...new Set(journal.flatMap((e) => e.quiet ?? []))].slice(0, 6);
+  return (
+    <section className="shelf">
+      <header className="shelf-head">
+        <h2>What we’re learning</h2>
+        <p className="muted">
+          {journal.length} {journal.length === 1 ? "session" : "sessions"} so far. Each one sharpens the next.
+        </p>
+      </header>
+      <dl className="learning">
+        <div>
+          <dt>Started with</dt>
+          <dd>{profile.loves.join(", ")}</dd>
+        </div>
+        <div>
+          <dt>Lit them up</dt>
+          <dd>
+            {profile.learned?.length ? (
+              <ul className="chips">
+                {profile.learned.map((l) => (
+                  <li key={l.id} className="lit-chip">
+                    {l.name}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              "Nothing marked yet. Tap “Lit up” during a session."
+            )}
+          </dd>
+        </div>
+        {setAside.length > 0 && (
+          <div>
+            <dt>Set aside for now</dt>
+            <dd>{setAside.join(", ")}</dd>
+          </div>
+        )}
+      </dl>
+    </section>
   );
 }
 

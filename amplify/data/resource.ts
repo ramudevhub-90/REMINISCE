@@ -45,6 +45,10 @@ const schema = a
         region: a.string(),
         era: a.string(),
         loves: a.string().array().required(),
+        // From the journal: Qloo entities that lit them up in past sessions,
+        // and everything already shown (so the next kit brings new things).
+        learned: a.json(),
+        avoidIds: a.string().array(),
       })
       .returns(a.ref("KitJobView"))
       .authorization(callers)

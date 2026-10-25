@@ -10,7 +10,7 @@ const client = generateClient({ authMode: "identityPool" });
 
 const TIMEOUT_MS = 120_000;
 
-export function buildKit({ region, era, loves }, onProgress) {
+export function buildKit({ region, era, loves, learned = [], shown = [] }, onProgress) {
   const jobId = crypto.randomUUID();
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -44,7 +44,14 @@ export function buildKit({ region, era, loves }, onProgress) {
     });
 
     client.mutations
-      .startKit({ jobId, region, era, loves })
+      .startKit({
+        jobId,
+        region,
+        era,
+        loves,
+        learned: JSON.stringify(learned.map(({ id, name, type }) => ({ id, name, type }))),
+        avoidIds: shown,
+      })
       .then(({ errors }) => errors?.length && finish(reject, new Error(errors[0].message)))
       .catch((err) => finish(reject, err));
   });
