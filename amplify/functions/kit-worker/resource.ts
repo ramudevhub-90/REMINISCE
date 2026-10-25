@@ -5,7 +5,7 @@ export const kitWorker = defineFunction({
   entry: "./handler.ts",
   runtime: 22,
   timeoutSeconds: 300,
-  memoryMB: 1024,
+  memoryMB: 2048,
   resourceGroupName: "data",
   environment: {
     QLOO_MODE: "live",

@@ -1,6 +1,15 @@
-// Everything about the person lives only on this device. Storage can be
-// unavailable (private windows, blocked site data), so every access is guarded.
-const KEYS = { profile: "reminisce.profile.v1", kit: "reminisce.kit.v1", journal: "reminisce.journal.v1" };
+// Everything about the people being cared for lives only on this device.
+// Storage can be unavailable (private windows, blocked site data), so every
+// access is guarded.
+const KEYS = {
+  profile: "reminisce.profile.v1",
+  kit: "reminisce.kit.v1",
+  journal: "reminisce.journal.v1",
+  timeline: "reminisce.timeline.v1",
+  group: "reminisce.group.v1",
+  groupKit: "reminisce.groupKit.v1",
+  groupJournal: "reminisce.groupJournal.v1",
+};
 
 function load(name, fallback) {
   try {
@@ -24,3 +33,11 @@ export const loadKit = () => load("kit", null);
 export const saveKit = (k) => save("kit", k);
 export const loadJournal = () => load("journal", []);
 export const saveJournal = (j) => save("journal", j);
+export const loadTimeline = () => load("timeline", null);
+export const saveTimeline = (t) => save("timeline", t);
+export const loadGroup = () => load("group", null);
+export const saveGroup = (g) => save("group", g);
+export const loadGroupKit = () => load("groupKit", null);
+export const saveGroupKit = (k) => save("groupKit", k);
+export const loadGroupJournal = () => load("groupJournal", []);
+export const saveGroupJournal = (j) => save("groupJournal", j);

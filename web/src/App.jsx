@@ -1,62 +1,109 @@
 import { useState } from "react";
-import { buildKit } from "./api.js";
-import { loadJournal, loadKit, loadProfile, saveJournal, saveKit, saveProfile } from "./storage.js";
+import { buildGroup, buildKit, buildTimeline } from "./api.js";
+import { computePortrait } from "./portrait.js";
+import * as store from "./storage.js";
 import Home from "./views/Home.jsx";
 import Building from "./views/Building.jsx";
 import Kit from "./views/Kit.jsx";
 import Session from "./views/Session.jsx";
+import Timeline from "./views/Timeline.jsx";
+import GroupSetup from "./views/GroupSetup.jsx";
+import GroupKit from "./views/GroupKit.jsx";
 
-const EMPTY = { name: "", region: "", era: "", loves: [], learned: [], shown: [] };
+const EMPTY = { name: "", region: "", era: "", loves: [], learned: [], shown: [], portrait: { loves: [], less: [] } };
+const NO_GROUP = { name: "", residents: [] };
 
-
+// "1960s" → "1960–1979", the span the timeline covers.
+function timelineYears(era) {
+  const m = era?.match(/(19|20)(\d)\d/) ?? era?.match(/\b(\d)0s\b/);
+  if (!m) return null;
+  const start = m.length === 3 ? Number(`${m[1]}${m[2]}0`) : 1900 + Number(m[1]) * 10;
+  return `${start}–${start + 19}`;
+}
 
 export default function App() {
-  const [profile, setProfile] = useState(() => loadProfile() ?? EMPTY);
-  const [kit, setKit] = useState(() => loadKit());
-  const [journal, setJournal] = useState(() => loadJournal());
-  const [view, setView] = useState(() => (loadKit() ? "kit" : "home"));
-  const [build, setBuild] = useState({ steps: [], error: "" });
+  const [profile, setProfile] = useState(() => store.loadProfile() ?? EMPTY);
+  const [kit, setKit] = useState(() => store.loadKit());
+  const [journal, setJournal] = useState(() => store.loadJournal());
+  const [timeline, setTimeline] = useState(() => store.loadTimeline());
+  const [group, setGroup] = useState(() => store.loadGroup() ?? NO_GROUP);
+  const [groupKit, setGroupKit] = useState(() => store.loadGroupKit());
+  const [groupJournal, setGroupJournal] = useState(() => store.loadGroupJournal());
+  const [groupSaved, setGroupSaved] = useState("");
+  const [view, setView] = useState(() => (store.loadKit() ? "kit" : "home"));
+  const [build, setBuild] = useState({ steps: [], error: "", title: "", back: "home" });
 
-  async function start({ fresh, ...p }) {
-    if (fresh) {
-      setJournal([]);
-      saveJournal([]);
-    }
-    saveProfile(p);
-    setProfile(p);
-    setBuild({ steps: [], error: "" });
+  // Runs an agent job, streaming its steps to the Building view.
+  async function run(title, back, job, done) {
+    setBuild({ steps: [], error: "", title, back });
     setView("building");
     window.scrollTo({ top: 0 });
     try {
-      // The name never leaves the device: only taste seeds are sent.
-      const result = await buildKit({ region: p.region, era: p.era, loves: p.loves, learned: p.learned, shown: p.shown }, (message) =>
-        setBuild((b) => ({ ...b, steps: [...b.steps, message] })),
-      );
-      setKit(result);
-      saveKit(result);
-      setView("kit");
+      const result = await job((message) => setBuild((b) => ({ ...b, steps: [...b.steps, message] })));
+      done(result);
+      window.scrollTo({ top: 0 });
     } catch (err) {
       setBuild((b) => ({ ...b, error: err.message }));
     }
   }
 
+  function start({ fresh, ...p }) {
+    if (fresh) {
+      setJournal([]);
+      store.saveJournal([]);
+      setTimeline(null);
+      store.saveTimeline(null);
+    }
+    store.saveProfile(p);
+    setProfile(p);
+    // The name never leaves the device: only taste seeds are sent.
+    run(
+      `Preparing a session${p.name ? ` for ${p.name}` : ""}`,
+      "home",
+      (onStep) =>
+        buildKit({ region: p.region, era: p.era, loves: p.loves, learned: p.learned, shown: p.shown, portrait: p.portrait?.loves }, onStep),
+      (result) => {
+        setKit(result);
+        store.saveKit(result);
+        setView("kit");
+      },
+    );
+  }
+
+  function openTimeline() {
+    const key = `${profile.region}|${profile.era}|${profile.loves.join()}`;
+    if (timeline?.key === key) return setView("timeline");
+    run(
+      `Gathering ${profile.name ? `${profile.name}’s` : "their"} world`,
+      "kit",
+      (onStep) => buildTimeline({ region: profile.region, era: profile.era, loves: profile.loves, learned: profile.learned }, onStep),
+      (result) => {
+        const t = { ...result, key };
+        setTimeline(t);
+        store.saveTimeline(t);
+        setView("timeline");
+      },
+    );
+  }
+
   // The weekly loop: what lit them up becomes a Qloo signal (and a favourite to
   // return to), what didn't land is left out, and films already shown make way
   // for new ones. Familiar songs may come back; that's part of reminiscence.
+  // The moods and genres their hits share become their taste portrait.
   function finishSession(entry) {
     const next = [entry, ...journal].slice(0, 50);
     setJournal(next);
-    saveJournal(next);
+    store.saveJournal(next);
     const hits = entry.items.filter((i) => i.reaction === "lit").map((i) => ({ ...i, date: entry.date }));
     const learned = [...hits, ...(profile.learned ?? [])].filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i).slice(0, 8);
     const setAside = entry.items.filter((i) => i.reaction === "none").map((i) => i.id);
     const shown = [...new Set([...kit.films.map((f) => f.id), ...setAside, ...(profile.shown ?? [])])].slice(0, 40);
+    const updated = { ...profile, learned, shown, portrait: computePortrait(next) };
+    setProfile(updated);
+    store.saveProfile(updated);
     const done = { ...kit, logged: true };
     setKit(done);
-    saveKit(done);
-    const updated = { ...profile, learned, shown };
-    setProfile(updated);
-    saveProfile(updated);
+    store.saveKit(done);
     setView("kit");
     window.scrollTo({ top: 0 });
   }
@@ -64,12 +111,42 @@ export default function App() {
   function newPerson() {
     if (journal.length && !window.confirm("Start with someone new? This clears the current journal on this device.")) return;
     setProfile(EMPTY);
-    saveProfile(EMPTY);
+    store.saveProfile(EMPTY);
     setKit(null);
-    saveKit(null);
+    store.saveKit(null);
     setJournal([]);
-    saveJournal([]);
+    store.saveJournal([]);
+    setTimeline(null);
+    store.saveTimeline(null);
     setView("home");
+  }
+
+  function changeGroup(g) {
+    setGroup(g);
+    store.saveGroup(g);
+  }
+
+  function startGroup() {
+    setGroupSaved("");
+    run(
+      `Preparing a group session${group.name ? ` for ${group.name}` : ""}`,
+      "groupSetup",
+      (onStep) => buildGroup(group.residents, onStep),
+      (result) => {
+        setGroupKit(result);
+        store.saveGroupKit(result);
+        setView("groupKit");
+      },
+    );
+  }
+
+  function finishGroupSession(entry) {
+    const next = [entry, ...groupJournal].slice(0, 50);
+    setGroupJournal(next);
+    store.saveGroupJournal(next);
+    setGroupSaved(entry.sparked.length ? `${entry.sparked.join(", ")} lit up the room.` : "A quiet session, noted.");
+    setView("groupKit");
+    window.scrollTo({ top: 0 });
   }
 
   if (view === "session" && kit) {
@@ -83,7 +160,11 @@ export default function App() {
       />
     );
   }
+  if (view === "groupSession" && groupKit) {
+    return <Session kit={groupKit} name={group.name || "the group"} group onClose={() => setView("groupKit")} onFinish={finishGroupSession} />;
+  }
 
+  const inGroup = view === "groupSetup" || view === "groupKit";
   return (
     <div className="app">
       <header className="masthead">
@@ -101,15 +182,43 @@ export default function App() {
             </button>
           </nav>
         )}
+        {(inGroup || view === "timeline") && (
+          <nav className="masthead-actions">
+            <button className="ghost" onClick={() => setView(kit ? "kit" : "home")}>
+              {kit ? `Back to ${profile.name || "your person"}` : "Home"}
+            </button>
+          </nav>
+        )}
       </header>
 
       <main>
-        {view === "home" && <Home initial={profile} onSubmit={start} />}
+        {view === "home" && <Home initial={profile} onSubmit={start} onGroup={() => setView(groupKit ? "groupKit" : "groupSetup")} />}
         {view === "building" && (
-          <Building name={profile.name} steps={build.steps} error={build.error} onBack={() => setView("home")} />
+          <Building title={build.title} steps={build.steps} error={build.error} onBack={() => setView(build.back)} />
         )}
         {view === "kit" && kit && (
-          <Kit kit={kit} profile={profile} journal={journal} onBegin={() => setView("session")} onNext={() => start(profile)} />
+          <Kit
+            kit={kit}
+            profile={profile}
+            journal={journal}
+            onBegin={() => setView("session")}
+            onNext={() => start(profile)}
+            onTimeline={openTimeline}
+            timelineYears={timelineYears(profile.era)}
+          />
+        )}
+        {view === "timeline" && timeline && <Timeline timeline={timeline} name={profile.name} onBack={() => setView("kit")} />}
+        {view === "groupSetup" && <GroupSetup group={group} onChange={changeGroup} onSubmit={startGroup} />}
+        {view === "groupKit" && groupKit && (
+          <GroupKit
+            kit={groupKit}
+            group={group}
+            journal={groupJournal}
+            saved={groupSaved}
+            onBegin={() => setView("groupSession")}
+            onEdit={() => setView("groupSetup")}
+            onRebuild={startGroup}
+          />
         )}
       </main>
 

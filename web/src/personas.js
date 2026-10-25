@@ -22,3 +22,14 @@ export const PERSONAS = [
     loves: ["Pedro Infante", "Javier Solís", "Mole"],
   },
 ];
+
+// A ready-made care-home group for trying group sessions.
+export const DEMO_GROUP = {
+  name: "Sunrise Care Home, Kolkata",
+  residents: [
+    { name: "Mr Banerjee", region: "Kolkata", era: "1960s", loves: ["Kishore Kumar", "Guide (1965)", "Fish curry"] },
+    { name: "Mrs Sen", region: "Kolkata", era: "1950s", loves: ["Hemanta Mukherjee", "Lata Mangeshkar", "Pather Panchali (1955)"] },
+    { name: "Mr Das", region: "Kolkata", era: "1960s", loves: ["Mohammed Rafi", "Mughal-E-Azam (1960)"] },
+    { name: "Mrs Ghosh", region: "Kolkata", era: "1960s", loves: ["Manna Dey", "Asha Bhosle", "Mishti doi"] },
+  ],
+};

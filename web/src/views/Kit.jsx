@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { playLink } from "../media.js";
 
-export default function Kit({ kit, profile, journal, onBegin, onNext }) {
+export default function Kit({ kit, profile, journal, onBegin, onNext, onTimeline, timelineYears }) {
   const [why, setWhy] = useState(null);
   const name = profile.name || "your person";
   // Once a session on this kit is logged, the next step is a new kit.
@@ -44,6 +44,12 @@ export default function Kit({ kit, profile, journal, onBegin, onNext }) {
               Refresh suggestions
             </button>
           </div>
+        )}
+        {timelineYears && (
+          <button className="world-link" onClick={onTimeline}>
+            <span className="eyebrow">New</span>
+            See {name}’s world, {timelineYears}: the films of every year they grew up in →
+          </button>
         )}
         {logged && (
           <p className="next-note">
@@ -127,7 +133,7 @@ export default function Kit({ kit, profile, journal, onBegin, onNext }) {
   );
 }
 
-function Shelf({ title, hint, items, onWhy, poster }) {
+export function Shelf({ title, hint, items, onWhy, poster, meta }) {
   return (
     <section className="shelf">
       <header className="shelf-head">
@@ -141,6 +147,7 @@ function Shelf({ title, hint, items, onWhy, poster }) {
             <div className="photo-meta">
               <strong>{item.name}</strong>
               <span className="muted">{[item.year, ...item.tags.slice(0, 2)].filter(Boolean).join(" · ")}</span>
+              {meta?.(item)}
             </div>
             <div className="photo-actions">
               <PlayLink item={item} />
@@ -185,7 +192,7 @@ export function PlayLink({ item }) {
   );
 }
 
-function WhySheet({ item, name, onClose }) {
+export function WhySheet({ item, name, onClose }) {
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -228,9 +235,12 @@ function WhySheet({ item, name, onClose }) {
   );
 }
 
-// The loop made visible: where we started, and what each session taught us.
+// The loop made visible: where we started, what each session taught us, and
+// the moods and genres (from Qloo's tags) that seem to reach them.
 function Learning({ profile, journal }) {
   const setAside = [...new Set(journal.flatMap((e) => e.quiet ?? []))].slice(0, 6);
+  const portrait = profile.portrait ?? { loves: [], less: [] };
+  const name = profile.name || "They";
   return (
     <section className="shelf">
       <header className="shelf-head">
@@ -239,6 +249,13 @@ function Learning({ profile, journal }) {
           {journal.length} {journal.length === 1 ? "session" : "sessions"} so far. Each one sharpens the next.
         </p>
       </header>
+      {portrait.loves.length > 0 && (
+        <p className="portrait">
+          {name} tends to respond to <strong>{andList(portrait.loves.map((t) => t.name))}</strong>
+          {portrait.less.length > 0 && <>, and less to {andList(portrait.less.map((t) => t.name))}</>}.
+          <span className="muted small"> From Qloo’s tags on what lit them up. The next kit leans this way.</span>
+        </p>
+      )}
       <dl className="learning">
         <div>
           <dt>Started with</dt>

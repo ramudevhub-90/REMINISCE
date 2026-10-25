@@ -1,82 +1,49 @@
-// Builds a session kit from a carer's seeds. Day 0: a fixed plan of Qloo calls
-// with template wording. Day 1 swaps the planner and wording for Claude.
+// Builds a session kit for one person from a carer's seeds, what lit them up
+// in past sessions, and the moods and genres that tend to reach them.
 import * as qloo from "../qloo/index";
-import type { QlooEntity, QlooResult } from "../qloo/index";
+import {
+  OLDER_AUDIENCE,
+  findEraGenres,
+  list,
+  parseDecade,
+  resolveSeeds,
+  toItem,
+  tracer,
+  unique,
+  type KitItem,
+  type Learned,
+  type OnStep,
+  type TagRef,
+} from "./shared";
 
-const OLDER_AUDIENCE = "55_and_older";
-
-export interface Learned {
-  id: string;
-  name: string;
-  type?: string;
-}
+export type { KitItem, Learned, TraceStep } from "./shared";
 
 export interface KitInput {
   region: string;
   era: string;
   loves: string[];
-  // From the carer's journal: what lit them up before, and what was already shown.
+  // From the carer's journal: what lit them up before, what to leave out, and
+  // the mood and genre tags their hits share (their taste portrait).
   learned?: Learned[];
   avoid?: string[];
+  portrait?: TagRef[];
 }
 
-export interface TraceStep {
-  label: string;
-  request?: string | undefined;
-  found?: string | null;
-  count?: number;
-}
-
-export interface KitItem {
-  id: string;
-  name: string;
-  type: string;
-  year?: number;
-  tags: string[];
-  image?: string;
-  spotifyId?: string;
-  description?: string;
-  why: { statement: string; affinity?: number; request: string; source: string };
-}
-
-type OnStep = (step: TraceStep) => Promise<void> | void;
-
-export async function buildKit({ region, era, loves, learned = [], avoid = [] }: KitInput, onStep: OnStep = () => {}) {
-  const trace: TraceStep[] = [];
-  const step = async (s: TraceStep) => {
-    trace.push(s);
-    await onStep(s);
-  };
+export async function buildKit(
+  { region, era, loves, learned = [], avoid = [], portrait = [] }: KitInput,
+  onStep: OnStep = () => {},
+) {
+  const { trace, step } = tracer(onStep);
 
   if (learned.length) {
     await step({ label: `Remembered from the journal: ${list(learned.map((l) => l.name))} lit them up` });
   }
+  if (portrait.length) {
+    await step({ label: `Leaning on what reaches them: ${list(portrait.map((t) => t.name))}` });
+  }
 
-  // 1. Resolve each free-text seed. Look it up as an entity and as a tag in
-  //    parallel: a dish like "fish curry" is a tag on places, not an entity.
-  const resolved = await Promise.all(
-    loves.map(async (love) => {
-      // "Guide (1965)": the year means a film, and helps pick the right one.
-      const year = love.match(/\((\d{4})\)\s*$/)?.[1];
-      const query = love.replace(/\s*\(\d{4}\)\s*$/, "");
-      const [res, tagRes] = await Promise.all([
-        qloo.search({ query, type: year ? "movie" : undefined, take: 1 }),
-        year ? undefined : qloo.findTags({ query, take: 5 }),
-      ]);
-      const entity = res.entities[0];
-      const dish = tagRes?.tags?.find((t) => t.type?.includes("specialty_dish") && same(t.name, query));
-      if (dish || !entity) {
-        const tag = dish ?? tagRes?.tags?.[0];
-        await step({ label: `Looked up “${love}” as a tag`, request: tagRes?.request, found: tag?.name ?? null });
-        return { tag };
-      }
-      await step({ label: `Looked up “${love}”`, request: res.request, found: entity.name });
-      return { entity };
-    }),
-  );
-  const seeds = resolved.flatMap((r) => (r.entity ? [r.entity] : []));
-  const seedTags = resolved.flatMap((r) => (r.tag ? [r.tag] : []));
-  const seedNames = [...seeds.map((s) => s.name), ...seedTags.map((t) => t.name.toLowerCase())];
+  // 1. Resolve each free-text seed.
+  const { seeds, seedTags, mediaIds: seedIds, genres, dishTags, names: seedNames } = await resolveSeeds(loves, step);
   const learnedNames = learned.map((l) => l.name);
 
   // 2. Expand into each category from the seeds that speak to it. Music leans
@@ -86,28 +53,24 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
   //    older people watch today rather than what they grew up with, so the era
   //    window does that job for media.)
   const decade = parseDecade(era);
-  const media = seeds.filter((s) => /artist|movie|tv_show|book|person/.test(s.type));
   // Past hits are Qloo entities already, so they join the signals directly.
-  const mediaIds = unique([...(media.length ? media : seeds).map((s) => s.entity_id), ...learned.map((l) => l.id)]);
-  // Don't repeat what they've already been shown, or the hits themselves.
+  const mediaIds = unique([...seedIds, ...learned.map((l) => l.id)]);
+  // Don't repeat what was set aside, or the hits themselves (shown as favourites).
   const exclude = unique([...avoid, ...learned.map((l) => l.id)]);
-  const genres = media.flatMap((s) => (s.tags ?? []).filter((t) => t.type === "urn:tag:genre").slice(0, 2));
-  const genreTags = unique(genres.map((t) => t.id)).slice(0, 4);
-  // Qloo can't filter singers by era, but its vocabulary has era genres
-  // ("Old Hindi"). For an older decade, look one up from the seeds' genres.
+  const genreTags = unique([...genres.map((t) => t.id), ...portrait.map((t) => t.id)]).slice(0, 6);
   const eraTags = decade && decade <= 1985 ? await findEraGenres(unique(genres.map((t) => t.name)).slice(0, 2)) : [];
   if (eraTags.length) {
-    await step({ label: `Found Qloo’s “${andNames(eraTags)}” genre for music from the ${era}`, found: eraTags[0].name });
+    await step({ label: `Found Qloo’s “${list(eraTags.map((t) => t.name))}” genre for music from the ${era}`, found: eraTags[0].name });
   }
-  const dishTags = seedTags.filter((t) => t.type?.includes("specialty_dish"));
 
+  const sparked = learnedNames.length ? `, and ${list(learnedNames)}, who lit them up in past sessions,` : "";
   const expand = async (type: string, take: number, opts: Partial<Parameters<typeof qloo.insights>[0]>) => {
     const res = await qloo.insights({ type, take, ...opts });
     const note = res.locationDropped ? ` (Qloo doesn't know “${region}”, so without location)` : "";
     await step({ label: `Expanded seeds into ${type}s${note}`, request: res.request, count: res.entities.length });
     // Places only make sense near where they grew up.
     if (type === "place" && res.locationDropped) return [];
-    return res.entities.map((ent) => toItem(ent, seedNames, learnedNames, res));
+    return res.entities.map((ent) => toItem(ent, res, `People who love ${list(seedNames)}${sparked} tend to also love ${ent.name}.`));
   };
   const none = Promise.resolve([] as KitItem[]);
   // Era-genre singers first. Qloo's era genres can be small, so top up from
@@ -125,6 +88,7 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
     mediaIds.length
       ? expand("movie", 4, {
           signalEntities: mediaIds,
+          signalTags: portrait.map((t) => t.id),
           exclude,
           releaseYears: decade ? { min: decade - 5, max: decade + 20 } : undefined,
         })
@@ -145,6 +109,7 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
   const dish = dishTags[0]?.name;
   const cuisine = topTag(places) ?? "home-style";
   return {
+    kind: "kit",
     source: qloo.mode(),
     learned: learnedNames,
     seeds: [...seeds.map((s) => ({ name: s.name, type: s.type })), ...seedTags.map((t) => ({ name: t.name, type: t.type }))],
@@ -162,26 +127,6 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
   };
 }
 
-function toItem(ent: QlooEntity, seedNames: string[], learnedNames: string[], res: QlooResult): KitItem {
-  const sparked = learnedNames.length ? `, and ${list(learnedNames)}, who lit them up in past sessions,` : "";
-  return {
-    id: ent.entity_id,
-    name: ent.name,
-    type: ent.type,
-    year: ent.properties?.release_year,
-    tags: (ent.tags ?? []).slice(0, 3).map((t) => t.name),
-    image: ent.properties?.image,
-    spotifyId: ent.properties?.spotify_id,
-    description: ent.properties?.description,
-    why: {
-      statement: `People who love ${list(seedNames)}${sparked} tend to also love ${ent.name}.`,
-      affinity: ent.query?.affinity,
-      request: res.request,
-      source: res.source,
-    },
-  };
-}
-
 function prompts({ music, films, region, era }: { music: KitItem[]; films: KitItem[]; region: string; era: string }) {
   const out: string[] = [];
   if (music[0]) out.push(`Play a song by ${music[0].name}. Ask: “Where were you when you first heard this?”`);
@@ -191,37 +136,8 @@ function prompts({ music, films, region, era }: { music: KitItem[]; films: KitIt
   return out;
 }
 
-// "1960s", "60s" or "1965" → 1960. Returns undefined when there's no era.
-function parseDecade(era: string) {
-  const full = era.match(/(19|20)(\d)\d/);
-  if (full) return Number(`${full[1]}${full[2]}0`);
-  const short = era.match(/\b(\d)0s\b/);
-  return short ? 1900 + Number(short[1]) * 10 : undefined;
-}
-
-// Looks for music genres in Qloo named like "Old Hindi" or "Classic Jazz".
-async function findEraGenres(genreNames: string[]) {
-  const queries = genreNames.flatMap((g) => [`old ${g}`, `classic ${g}`]);
-  const results = await Promise.all(queries.map((query) => qloo.findTags({ query, take: 5 })));
-  const found = results.flatMap((r, i) => {
-    const genre = genreNames[Math.floor(i / 2)].toLowerCase();
-    return (r.tags ?? []).filter(
-      (t) => t.id.startsWith("urn:tag:genre:music:") && /\b(old|classic|golden|retro)\b/i.test(t.name) && t.name.toLowerCase().includes(genre),
-    );
-  });
-  return found.filter((t, i) => found.findIndex((x) => x.id === t.id) === i).slice(0, 2);
-}
-
-const andNames = (tags: { name: string }[]) => list(tags.map((t) => t.name));
-
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-const unique = <T,>(xs: T[]) => [...new Set(xs)];
-
 function topTag(items: KitItem[]) {
   const counts = new Map<string, number>();
   for (const item of items) for (const tag of item.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 }
-
-const list = (names: string[]) =>
-  names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;

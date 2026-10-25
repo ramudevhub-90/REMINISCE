@@ -10,8 +10,8 @@ const REACTIONS = [
 const KIND_LABEL = { music: "Song", film: "Film", place: "Food", food: "Food" };
 
 // One calm card at a time, large enough to share the screen with the person.
-export default function Session({ kit, name, favourites, onClose, onFinish }) {
-  const cards = useMemo(() => buildCards(kit, favourites), [kit, favourites]);
+export default function Session({ kit, name, favourites, group, onClose, onFinish }) {
+  const cards = useMemo(() => buildCards(kit, favourites, group), [kit, favourites, group]);
   const [index, setIndex] = useState(0);
   const [reactions, setReactions] = useState({});
   const [note, setNote] = useState("");
@@ -35,7 +35,14 @@ export default function Session({ kit, name, favourites, onClose, onFinish }) {
     // Keep the Qloo ids of songs and films so the next kit can build on them.
     const items = cards
       .filter((c) => c.kind !== "food")
-      .map((c) => ({ id: c.item.id, name: c.item.name, type: c.item.type, image: c.item.image, reaction: reactions[c.key] ?? null }));
+      .map((c) => ({
+        id: c.item.id,
+        name: c.item.name,
+        type: c.item.type,
+        image: c.item.image,
+        tagRefs: c.item.tagRefs ?? [],
+        reaction: reactions[c.key] ?? null,
+      }));
     onFinish({ date: new Date().toISOString(), sparked: pick("lit"), some: pick("some"), quiet: pick("none"), note: note.trim(), items });
   }
 
@@ -125,7 +132,12 @@ function SessionCard({ card, reaction, onReact, onBack, onNext }) {
   );
 }
 
-function buildCards(kit, favourites = []) {
+const GROUP_PROMPTS = {
+  music: "Play a song the room might know. Watch who sings along, and invite them to say where they first heard it.",
+  film: "Play a song or a short scene. Ask the room who saw it at the cinema, and with whom.",
+};
+
+function buildCards(kit, favourites = [], group = false) {
   const cards = [];
   // Familiar favourites are worth returning to: open with the ones that lit them up.
   for (const item of favourites.slice(0, 2)) {
@@ -144,7 +156,9 @@ function buildCards(kit, favourites = []) {
       kind: "music",
       title: item.name,
       item,
-      prompt: "Play a favourite song. Watch for a smile, humming or a tapping foot. If they light up, ask where they first heard it.",
+      prompt: group
+        ? GROUP_PROMPTS.music
+        : "Play a favourite song. Watch for a smile, humming or a tapping foot. If they light up, ask where they first heard it.",
     });
   }
   for (const item of kit.films.slice(0, 2)) {
@@ -153,7 +167,7 @@ function buildCards(kit, favourites = []) {
       kind: "film",
       title: item.year ? `${item.name} (${item.year})` : item.name,
       item,
-      prompt: "Play a song or short scene. Ask who they used to go to the pictures with, and what they wore.",
+      prompt: group ? GROUP_PROMPTS.film : "Play a song or short scene. Ask who they used to go to the pictures with, and what they wore.",
     });
   }
   if (kit.food) {

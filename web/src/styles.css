@@ -327,3 +327,59 @@ code {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Timeline link on the kit */
+.world-link {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 18px; padding: 14px 18px;
+  width: 100%; max-width: 620px; text-align: left; background: var(--card); color: var(--ink); border: 1px solid var(--rule);
+  border-left: 3px solid var(--gold); border-radius: 12px; font: 500 17px var(--serif); cursor: pointer;
+}
+.world-link .eyebrow { margin: 0; font-size: 11px; }
+.world-link:hover { border-color: var(--gold); }
+
+/* Taste portrait */
+.portrait { font: 400 20px/1.45 var(--serif); color: var(--ink); margin-bottom: 20px; max-width: 640px; }
+.portrait strong { font-weight: 500; color: var(--accent); }
+.portrait .muted { display: block; font-family: var(--sans); margin-top: 6px; }
+
+/* Timeline view */
+.years { list-style: none; margin: 0; padding: 32px 0 0; display: grid; gap: 0; }
+.year-chapter { display: grid; grid-template-columns: 140px 1fr; gap: 28px; padding: 28px 0; border-bottom: 1px solid var(--rule); }
+.year-mark { position: sticky; top: 16px; align-self: start; display: grid; }
+.year-mark span:first-child { font: 500 46px/1 var(--serif); color: var(--accent); }
+.year-to { color: var(--muted); font-size: 15px; margin-top: 4px; }
+.year-films { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; }
+.year-films li { display: grid; gap: 4px; min-width: 0; }
+.year-films .photo { aspect-ratio: 2 / 3; }
+.year-films strong { font: 500 16px/1.25 var(--serif); }
+.year-films .muted { font-size: 14px; }
+.year-actions { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.year-prompt { margin-top: 18px; font: italic 400 18px/1.45 var(--serif); color: var(--ink-soft); padding-left: 16px; border-left: 3px solid var(--gold); }
+@media (max-width: 640px) {
+  .year-chapter { grid-template-columns: 1fr; gap: 14px; }
+  .year-mark { position: static; display: flex; align-items: baseline; gap: 10px; }
+  .year-mark span:first-child { font-size: 36px; }
+  .year-films { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Group sessions */
+.group-callout {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 22px 24px; margin-bottom: 36px; border: 1px dashed var(--gold); border-radius: var(--radius);
+}
+.group-callout .section-label { margin-bottom: 4px; }
+.group-callout > div { flex: 1 1 320px; min-width: 0; }
+.hero.compact { padding-bottom: 20px; }
+.demo-group { width: 100%; max-width: 640px; margin-bottom: 24px; }
+.group-name { max-width: 640px; margin-bottom: 20px; }
+.residents { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 10px; max-width: 640px; }
+.resident {
+  display: flex; gap: 14px; align-items: center; padding: 14px 16px; background: var(--card);
+  border: 1px solid var(--rule); border-radius: 14px;
+}
+.resident > div { flex: 1; min-width: 0; display: grid; }
+.resident strong { font: 500 18px var(--serif); }
+.resident .muted { font-size: 14px; }
+.group-go { margin: 28px 0 8px; display: grid; gap: 8px; justify-items: start; }
+.reaches { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--sage); }
+.reaches.quiet { color: var(--muted); font-weight: 500; }

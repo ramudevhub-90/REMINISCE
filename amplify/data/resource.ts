@@ -49,6 +49,11 @@ const schema = a
         // and everything already shown (so the next kit brings new things).
         learned: a.json(),
         avoidIds: a.string().array(),
+        // The mood and genre tags their past hits share.
+        portrait: a.json(),
+        // "kit" (default), "timeline", or "group" with residents in members.
+        kind: a.string(),
+        members: a.json(),
       })
       .returns(a.ref("KitJobView"))
       .authorization(callers)

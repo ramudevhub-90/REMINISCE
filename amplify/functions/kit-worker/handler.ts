@@ -9,6 +9,17 @@ import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { env } from "$amplify/env/kit-worker";
 import type { Schema } from "../../data/resource";
 import { buildKit, type KitInput, type TraceStep } from "./agent/kit";
+import { buildTimeline } from "./agent/timeline";
+import { buildGroup, type Member } from "./agent/group";
+
+type JobInput = KitInput & { kind?: "kit" | "timeline" | "group"; members?: Member[] };
+
+// One queue, three agents: a person's session kit, their timeline, or a group session.
+function runAgent(input: JobInput, onStep: (step: TraceStep) => Promise<void>) {
+  if (input.kind === "timeline") return buildTimeline(input, onStep);
+  if (input.kind === "group") return buildGroup({ members: input.members ?? [] }, onStep);
+  return buildKit(input, onStep);
+}
 import { harnessCheck, probe } from "./qloo/index";
 
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env);
@@ -24,12 +35,12 @@ export const handler = async (event: Parameters<SQSHandler>[0] | DirectEvent) =>
   if ("probe" in event) return probe(event.probe);
 
   for (const record of event.Records) {
-    const { jobId, input } = JSON.parse(record.body) as { jobId: string; input: KitInput };
+    const { jobId, input } = JSON.parse(record.body) as { jobId: string; input: JobInput };
     await run(jobId, input);
   }
 };
 
-async function run(jobId: string, input: KitInput) {
+async function run(jobId: string, input: JobInput) {
   const steps: TraceStep[] = [];
   const publish = (status: string, message?: string, result?: unknown) =>
     client.mutations.publishProgress({ jobId, status, message, result: result === undefined ? undefined : JSON.stringify(result) });
@@ -37,7 +48,7 @@ async function run(jobId: string, input: KitInput) {
   await save(jobId, { status: "running" });
   await publish("running", "Reading the taste graph…");
   try {
-    const kit = await buildKit(input, async (step) => {
+    const kit = await runAgent(input, async (step) => {
       steps.push(step);
       await publish("running", step.label);
     });

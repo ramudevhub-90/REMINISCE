@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PERSONAS } from "../personas.js";
 
-export default function Home({ initial, onSubmit }) {
+export default function Home({ initial, onSubmit, onGroup }) {
   const [form, setForm] = useState(initial);
   const [draft, setDraft] = useState("");
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -71,6 +71,18 @@ export default function Home({ initial, onSubmit }) {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="group-callout">
+        <div>
+          <h2 className="section-label">Running a group in a care home?</h2>
+          <p className="muted">
+            Add the residents joining today. Reminisce finds the songs and films the most of them are likely to share.
+          </p>
+        </div>
+        <button className="secondary" onClick={onGroup}>
+          Plan a group session
+        </button>
       </section>
 
       <form className="paper form" onSubmit={submit}>

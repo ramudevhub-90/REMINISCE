@@ -1,8 +1,8 @@
 // Shown while the agent works; each step streams in from the backend.
-export default function Building({ name, steps, error, onBack }) {
+export default function Building({ name, title, steps, error, onBack }) {
   return (
     <section className="building paper" aria-live="polite">
-      <p className="eyebrow">Preparing a session{name ? ` for ${name}` : ""}</p>
+      <p className="eyebrow">{title ?? `Preparing a session${name ? ` for ${name}` : ""}`}</p>
       <h1>{error ? "Something went wrong" : "Gathering what their generation loved…"}</h1>
       <ol className="timeline">
         {steps.map((s, i) => (
@@ -20,7 +20,7 @@ export default function Building({ name, steps, error, onBack }) {
           </button>
         </>
       ) : (
-        <p className="muted">This usually takes about half a minute.</p>
+        <p className="muted">This usually takes under a minute.</p>
       )}
     </section>
   );

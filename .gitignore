@@ -13,3 +13,4 @@ amplify/layers/qloo-harness/nodejs/node_modules/
 amplify/layers/qloo-harness/nodejs/package-lock.json
 .hosting/
 .claude/
+.amplify-hosting-deploy.lock

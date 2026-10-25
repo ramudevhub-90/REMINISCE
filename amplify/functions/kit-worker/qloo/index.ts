@@ -21,6 +21,22 @@ export const QLOO_BIN = process.env.QLOO_BIN ?? "/opt/nodejs/node_modules/@qloo/
 const MAX_TAKE = 10;
 const CACHE_TTL_S = 7 * 24 * 60 * 60;
 
+// Each CLI call starts a Node process; group jobs make dozens. Run at most a
+// few at once to protect the Lambda's memory and the event quota.
+const MAX_PARALLEL = 4;
+let running = 0;
+const waiting: Array<() => void> = [];
+async function limited<T>(fn: () => Promise<T>): Promise<T> {
+  if (running >= MAX_PARALLEL) await new Promise<void>((resolve) => waiting.push(resolve));
+  running++;
+  try {
+    return await fn();
+  } finally {
+    running--;
+    waiting.shift()?.();
+  }
+}
+
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
 const memory = new Map<string, QlooResult>();
 let apiKey: Promise<string> | undefined;
@@ -139,7 +155,7 @@ async function cached(args: string[], sample: () => Pick<QlooResult, "entities" 
   const key = `${MODE}:${args.join("\u0000")}`;
   const hit = memory.get(key) ?? (await readCache(key));
   if (hit) return { ...hit, cached: true };
-  const data = MODE === "live" ? await runCli(args) : sample();
+  const data = MODE === "live" ? await limited(() => runCli(args)) : sample();
   const result: QlooResult = { ...data, source: MODE, request: describe(args) };
   memory.set(key, result);
   await writeCache(key, result);
