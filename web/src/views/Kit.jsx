@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { playLink } from "../media.js";
 
-export default function Kit({ kit, profile, journal, onBegin, onNext, onTimeline, timelineYears }) {
+export default function Kit({ kit, profile, journal, onBegin, onNext, onTimeline, timelineYears, onEdit }) {
   const [why, setWhy] = useState(null);
   const name = profile.name || "your person";
   // Once a session on this kit is logged, the next step is a new kit.
@@ -22,6 +22,11 @@ export default function Kit({ kit, profile, journal, onBegin, onNext, onTimeline
         <h1>
           A session for <em>{name}</em>
         </h1>
+        {onEdit && (
+          <button className="link edit-link" onClick={onEdit}>
+            Edit {name}’s details
+          </button>
+        )}
         <p className="seeds">
           Built from what they love: {kit.seeds.map((s) => s.name).join(", ")}
           {kit.learned?.length > 0 && <>, and what lit them up last time: {kit.learned.join(", ")}</>}

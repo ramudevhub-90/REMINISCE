@@ -14,6 +14,7 @@ import GroupSetup from "./views/GroupSetup.jsx";
 import GroupKit from "./views/GroupKit.jsx";
 import Account from "./views/Account.jsx";
 import PersonForm from "./views/PersonForm.jsx";
+import BulkImport from "./views/BulkImport.jsx";
 
 const EMPTY = { name: "", region: "", era: "", loves: [], learned: [], shown: [], portrait: { loves: [], less: [] } };
 const NO_GROUP = { name: "", residents: [] };
@@ -41,6 +42,7 @@ export default function App() {
   const [people, setPeople] = useState([]);
   const [account, setAccount] = useState(null);
   const [editing, setEditing] = useState("new"); // "new" or "current", for the person form
+  const [returnTo, setReturnTo] = useState("account"); // where "Save resident" goes back to
   const careHome = account?.kind === "carehome";
 
   // Latest state for async auth handlers, which outlive the render they started in.
@@ -170,12 +172,29 @@ export default function App() {
     if (prepare) return start({ ...fresh, fresh: true });
     const created = await cloud.createPerson({ profile: fresh, kit: null, journal: [], timeline: null });
     setPeople((list) => [created, ...list]);
-    setView("account");
+    if (returnTo === "groupSetup") {
+      // Added from a group session: tick them straight into today's group.
+      const { region, era, loves } = created.profile;
+      changeGroup({ ...group, residents: [...group.residents, { personId: created.id, name: created.name, region, era, loves }] });
+    }
+    setView(returnTo);
   }
 
-  function addPerson() {
+  function addPerson(back = "account") {
+    setReturnTo(back);
     setEditing("new");
     setView("person");
+  }
+
+  // Bulk import for care homes: one record per resident, no kits yet.
+  async function importResidents(rows, onProgress) {
+    const created = [];
+    for (const [i, r] of rows.entries()) {
+      onProgress(i + 1);
+      created.push(await cloud.createPerson({ profile: { ...EMPTY, ...r }, kit: null, journal: [], timeline: null }));
+    }
+    setPeople((list) => [...created.reverse(), ...list]);
+    return created.length;
   }
 
   function editPerson() {
@@ -332,11 +351,23 @@ export default function App() {
   return (
     <div className="app">
       <header className="masthead">
-        <button className="wordmark" onClick={() => setView(kit ? "kit" : "home")}>
+        <button className="wordmark" onClick={() => (user ? openAccount() : setView(kit ? "kit" : "home"))}>
           <span className="mark" aria-hidden="true" />
           Reminisce
         </button>
-        {view === "kit" && (
+        {user && (
+          <nav className="masthead-actions signed-in">
+            <button className={`ghost ${inGroup ? "" : "on"}`} onClick={openAccount}>
+              {careHome ? "Residents" : "Your people"}
+            </button>
+            {careHome && (
+              <button className={`ghost ${inGroup ? "on" : ""}`} onClick={() => setView(groupKit ? "groupKit" : "groupSetup")}>
+                Group session
+              </button>
+            )}
+          </nav>
+        )}
+        {!user && view === "kit" && (
           <nav className="masthead-actions">
             <button className="ghost" onClick={() => (user ? editPerson() : setView("home"))}>
               Edit details
@@ -346,16 +377,16 @@ export default function App() {
             </button>
           </nav>
         )}
-        {(inGroup || view === "timeline" || view === "account") && (
+        {!user && (inGroup || view === "timeline" || view === "account") && (
           <nav className="masthead-actions">
             <button className="ghost" onClick={() => setView(kit ? "kit" : "home")}>
               {kit ? `Back to ${profile.name || "your person"}` : "Home"}
             </button>
           </nav>
         )}
-        {view !== "account" && (
+        {!user && view !== "account" && (
           <button className="account-button" onClick={openAccount}>
-            {user ? (careHome ? "Residents" : "Your people") : "Sign in"}
+            Sign in
           </button>
         )}
       </header>
@@ -382,10 +413,26 @@ export default function App() {
             onNext={() => start(profile)}
             onTimeline={openTimeline}
             timelineYears={timelineYears(profile.era)}
+            onEdit={user ? editPerson : null}
           />
         )}
         {view === "timeline" && timeline && <Timeline timeline={timeline} name={profile.name} onBack={() => setView("kit")} />}
-        {view === "groupSetup" && <GroupSetup group={group} people={people} onChange={changeGroup} onSubmit={startGroup} />}
+        {view === "groupSetup" && (
+          <GroupSetup
+            group={group}
+            people={people}
+            signedIn={Boolean(user)}
+            onAddResident={() => addPerson("groupSetup")}
+            onChange={changeGroup}
+            onSubmit={startGroup}
+          />
+        )}
+        {view === "import" && (
+          <BulkImport
+            onImport={importResidents}
+            onDone={openAccount}
+          />
+        )}
         {view === "person" && (
           <PersonForm
             key={`${editing}-${profile.cloudId ?? ""}`}
@@ -394,7 +441,7 @@ export default function App() {
             noun={careHome ? "resident" : "person"}
             careHome={careHome}
             onSave={savePersonForm}
-            onCancel={() => setView(editing === "current" && kit ? "kit" : "account")}
+            onCancel={() => setView(editing === "current" && kit ? "kit" : returnTo)}
           />
         )}
         {view === "account" && (
@@ -409,7 +456,8 @@ export default function App() {
               if (p.kit) setView("kit");
               else editPerson();
             }}
-            onAdd={addPerson}
+            onAdd={() => addPerson("account")}
+            onImport={() => setView("import")}
             onSignOut={() => signOut()}
             onDeleteAll={deleteAll}
           />

@@ -3,22 +3,13 @@ import { DEMO_GROUP } from "../personas.js";
 
 const BLANK = { name: "", region: "", era: "", loves: [] };
 
-// Who's in the lounge today. Names stay on this device.
-export default function GroupSetup({ group, people = [], onChange, onSubmit }) {
-  const [picked, setPicked] = useState([]);
-  // Residents already saved to the account who aren't in today's group yet.
-  const saved = people.filter((p) => p.profile?.loves?.length && !group.residents.some((r) => r.personId === p.id));
-  const addPicked = () => {
-    const chosen = saved.filter((p) => picked.includes(p.id));
-    onChange({
-      ...group,
-      residents: [
-        ...group.residents,
-        ...chosen.map((p) => ({ personId: p.id, name: p.name, region: p.profile.region, era: p.profile.era, loves: p.profile.loves })),
-      ],
-    });
-    setPicked([]);
-  };
+// Who's in the lounge today. Signed-in care homes tick residents from their
+// list; guests type them in (names stay on this device).
+export default function GroupSetup({ signedIn, ...props }) {
+  return signedIn ? <PickResidents {...props} /> : <GuestSetup {...props} />;
+}
+
+function GuestSetup({ group, onChange, onSubmit }) {
   const [form, setForm] = useState({ ...BLANK, region: group.residents.at(-1)?.region ?? "" });
   const [draft, setDraft] = useState("");
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -92,32 +83,6 @@ export default function GroupSetup({ group, people = [], onChange, onSubmit }) {
         </ul>
       )}
 
-      {saved.length > 0 && (
-        <section className="paper form from-residents">
-          <h2 className="section-label">Add from your residents</h2>
-          <ul className="pick-list">
-            {saved.map((p) => (
-              <li key={p.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={picked.includes(p.id)}
-                    onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((id) => id !== p.id))}
-                  />
-                  <span>
-                    <strong>{p.name}</strong>
-                    <span className="muted">{p.profile.loves.join(" · ")}</span>
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-          <button className="secondary" disabled={!picked.length} onClick={addPicked}>
-            Add {picked.length || ""} to today’s group
-          </button>
-        </section>
-      )}
-
       <form className="paper form" onSubmit={addResident}>
         <h2 className="section-label">Add a resident</h2>
         <label className="field">
@@ -170,6 +135,54 @@ export default function GroupSetup({ group, people = [], onChange, onSubmit }) {
           Prepare the group session
         </button>
         {!ready && <p className="muted small">Add at least two residents.</p>}
+      </div>
+    </div>
+  );
+}
+
+function PickResidents({ group, people = [], onAddResident, onChange, onSubmit }) {
+  const residents = people.filter((p) => p.profile?.loves?.length);
+  const inGroup = (p) => group.residents.some((r) => r.personId === p.id);
+  const toggle = (p) =>
+    onChange({
+      ...group,
+      residents: inGroup(p)
+        ? group.residents.filter((r) => r.personId !== p.id)
+        : [...group.residents, { personId: p.id, name: p.name, region: p.profile.region, era: p.profile.era, loves: p.profile.loves }],
+    });
+  const count = group.residents.length;
+
+  return (
+    <div className="group-setup">
+      <section className="hero compact">
+        <p className="eyebrow">Group session{group.name ? ` · ${group.name}` : ""}</p>
+        <h1>Who’s joining today?</h1>
+        <p className="lede">Tick the residents in the lounge. Reminisce finds the songs and films the most of them are likely to share.</p>
+      </section>
+
+      <ul className="pick-list paper form">
+        {residents.map((p) => (
+          <li key={p.id}>
+            <label>
+              <input type="checkbox" checked={inGroup(p)} onChange={() => toggle(p)} />
+              <span>
+                <strong>{p.name}</strong>
+                <span className="muted">{p.profile.loves.join(" · ")}</span>
+              </span>
+            </label>
+          </li>
+        ))}
+        {!residents.length && <li className="muted">No residents yet. Add your first resident below.</li>}
+      </ul>
+      <button className="link" onClick={onAddResident}>
+        + Add a new resident
+      </button>
+
+      <div className="group-go">
+        <button className="primary large" disabled={count < 2} onClick={onSubmit}>
+          Prepare the group session{count ? ` for ${count}` : ""}
+        </button>
+        {count < 2 && <p className="muted small">Tick at least two residents.</p>}
       </div>
     </div>
   );

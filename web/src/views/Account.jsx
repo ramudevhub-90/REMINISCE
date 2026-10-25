@@ -3,7 +3,7 @@ import EmailCode from "./EmailCode.jsx";
 
 // Guests see sign-in / create account. Signed-in carers see their people,
 // can switch between them or add someone new, sign out, or delete everything.
-export default function Account({ user, account, people, currentId, onChooseKind, onOpen, onAdd, onSignOut, onDeleteAll }) {
+export default function Account({ user, account, people, currentId, onChooseKind, onOpen, onAdd, onImport, onSignOut, onDeleteAll }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -77,9 +77,7 @@ export default function Account({ user, account, people, currentId, onChooseKind
   return (
     <div className="account">
       <section className="hero compact">
-        <p className="eyebrow">
-          {careHome ? `${account.orgName} · ` : ""}Signed in as {user.email}
-        </p>
+        <p className="eyebrow">{careHome ? account.orgName : "Your account"}</p>
         <h1>{careHome ? "Residents" : "Your people"}</h1>
         <p className="lede">
           {careHome
@@ -87,6 +85,17 @@ export default function Account({ user, account, people, currentId, onChooseKind
             : "Each person keeps their own journal, favourites and taste portrait. Open one to continue."}
         </p>
       </section>
+
+      <div className="account-actions top">
+        <button className="primary" onClick={onAdd}>
+          + {careHome ? "Add a resident" : "Add someone"}
+        </button>
+        {careHome && (
+          <button className="secondary" onClick={onImport}>
+            Import residents
+          </button>
+        )}
+      </div>
 
       <ul className="residents people-list">
         {people.map((p) => (
@@ -114,9 +123,7 @@ export default function Account({ user, account, people, currentId, onChooseKind
       </ul>
 
       <div className="account-actions">
-        <button className="primary" onClick={onAdd}>
-          {careHome ? "Add a resident" : "Add someone new"}
-        </button>
+        <span className="muted small">Signed in as {user.email}</span>
         <button className="ghost" onClick={onSignOut}>
           Sign out
         </button>
