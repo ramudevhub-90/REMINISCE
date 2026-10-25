@@ -80,6 +80,10 @@ export async function getAccount() {
   const all = await listAll(db.models.CarerAccount);
   return all[0] ? { id: all[0].id, kind: all[0].kind, orgName: all[0].orgName ?? "" } : null;
 }
+export const updateAccount = async ({ id, kind, orgName }) => {
+  const a = ok(await db.models.CarerAccount.update({ id, kind, orgName }));
+  return { id: a.id, kind: a.kind, orgName: a.orgName ?? "" };
+};
 export const createAccount = async ({ kind, orgName }) => {
   const a = ok(await db.models.CarerAccount.create({ kind, orgName }));
   return { id: a.id, kind: a.kind, orgName: a.orgName ?? "" };

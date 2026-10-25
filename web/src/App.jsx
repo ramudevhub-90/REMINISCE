@@ -203,10 +203,10 @@ export default function App() {
   }
 
   async function chooseKind(choice) {
-    const acct = await cloud.createAccount(choice);
+    const acct = account ? await cloud.updateAccount({ id: account.id, ...choice }) : await cloud.createAccount(choice);
     setAccount(acct);
     if (acct.kind === "carehome" && !group.name) changeGroup({ ...group, name: acct.orgName });
-    setView(acct.kind === "carehome" ? "account" : kit ? "kit" : "home");
+    setView("account");
   }
 
   async function deleteAll() {

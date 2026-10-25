@@ -6,8 +6,27 @@ import EmailCode from "./EmailCode.jsx";
 export default function Account({ user, account, people, currentId, onChooseKind, onOpen, onAdd, onImport, onSignOut, onDeleteAll }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [orgName, setOrgName] = useState("");
+  const [orgName, setOrgName] = useState(account?.orgName ?? "");
+  const [kind, setKind] = useState(account?.kind ?? "");
+  const [choosing, setChoosing] = useState(false);
+  const [kindError, setKindError] = useState("");
   const careHome = account?.kind === "carehome";
+
+  async function saveKind(e) {
+    e.preventDefault();
+    if (!kind) return setKindError("Choose one to continue.");
+    if (kind === "carehome" && !orgName.trim()) return setKindError("Add the name of your care home.");
+    setBusy(true);
+    setKindError("");
+    try {
+      await onChooseKind({ kind, orgName: kind === "carehome" ? orgName.trim() : "" });
+      setChoosing(false);
+    } catch (err) {
+      setKindError(err.message || "Couldn’t save. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!user) {
     return (
@@ -29,37 +48,50 @@ export default function Account({ user, account, people, currentId, onChooseKind
     );
   }
 
-  // First visit after signing up: family carer, or a care home?
-  if (!account) {
+  // First visit after signing up (or "Change account type"): family or care home?
+  if (!account || choosing) {
     return (
       <div className="account">
         <section className="hero compact">
-          <p className="eyebrow">Welcome</p>
+          <p className="eyebrow">{account ? "Account type" : "Welcome"}</p>
           <h1>Who are you caring for?</h1>
-          <p className="lede">This shapes how Reminisce is set up for you. You can still add more people later.</p>
+          <p className="lede">This shapes how Reminisce is set up for you. You can change it later.</p>
         </section>
-        <div className="kind-cards">
-          <button className="kind-card" onClick={() => onChooseKind({ kind: "family" })}>
-            <strong>A family member</strong>
-            <span>For a parent, grandparent or partner. Keep each person’s journal, favourites and portrait.</span>
-          </button>
-          <div className="kind-card">
-            <strong>Residents in a care home</strong>
-            <span>Keep every resident’s profile in one place and run group sessions for the lounge.</span>
-            <label className="field">
-              <span>Name of your care home</span>
-              <input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Sunrise Care Home" />
+        <form className="kind-form" onSubmit={saveKind}>
+          <div className="kind-cards" role="radiogroup" aria-label="Who are you caring for?">
+            <label className={`kind-card ${kind === "family" ? "selected" : ""}`}>
+              <input type="radio" name="kind" value="family" checked={kind === "family"} onChange={() => setKind("family")} />
+              <strong>A family member</strong>
+              <span>For a parent, grandparent or partner. Keep each person’s journal, favourites and portrait.</span>
             </label>
-            <button className="primary" disabled={!orgName.trim()} onClick={() => onChooseKind({ kind: "carehome", orgName: orgName.trim() })}>
-              Set up our care home
-            </button>
+            <label className={`kind-card ${kind === "carehome" ? "selected" : ""}`}>
+              <input type="radio" name="kind" value="carehome" checked={kind === "carehome"} onChange={() => setKind("carehome")} />
+              <strong>Residents in a care home</strong>
+              <span>Keep every resident’s profile in one place and run group sessions for the lounge.</span>
+            </label>
           </div>
-        </div>
-        <div className="account-actions">
-          <button className="ghost" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
+          {kind === "carehome" && (
+            <label className="field kind-org">
+              <span>Name of your care home</span>
+              <input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Sunrise Care Home" autoFocus />
+            </label>
+          )}
+          {kindError && <p className="error">{kindError}</p>}
+          <div className="account-actions">
+            <button className="primary" disabled={busy || !kind}>
+              {busy ? "Saving…" : "Continue"}
+            </button>
+            {account ? (
+              <button type="button" className="ghost" onClick={() => setChoosing(false)}>
+                Cancel
+              </button>
+            ) : (
+              <button type="button" className="ghost" onClick={onSignOut}>
+                Sign out
+              </button>
+            )}
+          </div>
+        </form>
       </div>
     );
   }
@@ -124,6 +156,9 @@ export default function Account({ user, account, people, currentId, onChooseKind
 
       <div className="account-actions">
         <span className="muted small">Signed in as {user.email}</span>
+        <button className="ghost" onClick={() => setChoosing(true)}>
+          Change account type
+        </button>
         <button className="ghost" onClick={onSignOut}>
           Sign out
         </button>
