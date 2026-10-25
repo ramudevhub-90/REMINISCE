@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { autoSignIn, confirmSignIn, confirmSignUp, signIn, signUp } from "aws-amplify/auth";
+import { autoSignIn, confirmSignIn, confirmSignUp, resendSignUpCode, signIn, signUp } from "aws-amplify/auth";
 
 const OTP = { authFlowType: "USER_AUTH", preferredChallenge: "EMAIL_OTP" };
 
-// One flow for everyone: email, then a 6-digit code. Returning carers get a
-// sign-in code; a new email creates the account and gets a verification code.
+// One flow for everyone: email, then a 6-digit code. A new email creates the
+// account and gets a verification code; a returning carer gets a sign-in code.
 // Either way, entering the code signs them in (the app listens for that).
 export default function EmailCode() {
   const [email, setEmail] = useState("");
@@ -30,15 +30,23 @@ export default function EmailCode() {
     const username = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(username)) return setError("Please enter a valid email address.");
     run(async () => {
+      // Try to create the account first: Cognito hides whether an email is
+      // registered on sign-in, so a new email would get a silent fake challenge.
       try {
-        const { nextStep } = await signIn({ username, options: OTP });
-        if (nextStep.signInStep !== "CONFIRM_SIGN_IN_WITH_EMAIL_CODE") throw new Error(`Unexpected step: ${nextStep.signInStep}`);
-        setStep("signin-code");
-      } catch (err) {
-        if (err.name !== "UserNotFoundException") throw err;
-        // New here: create the account; Cognito emails a verification code.
         await signUp({ username, options: { userAttributes: { email: username }, autoSignIn: OTP } });
         setStep("signup-code");
+      } catch (err) {
+        if (err.name !== "UsernameExistsException") throw err;
+        try {
+          const { nextStep } = await signIn({ username, options: OTP });
+          if (nextStep.signInStep !== "CONFIRM_SIGN_IN_WITH_EMAIL_CODE") throw new Error(`Unexpected step: ${nextStep.signInStep}`);
+          setStep("signin-code");
+        } catch (signInErr) {
+          // Started signing up before but never entered the code: send it again.
+          if (signInErr.name !== "UserNotConfirmedException") throw signInErr;
+          await resendSignUpCode({ username });
+          setStep("signup-code");
+        }
       }
       setCode("");
     });
