@@ -7,7 +7,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEMO, INTRO, OUTRO, VOICE } from "./script.mjs";
+// VLANG=hi renders the Hindi version (script.hi.mjs) into separate files.
+const LANG = process.env.VLANG === "hi" ? "hi" : "en";
+const { DEMO, INTRO, OUTRO, VOICE } = await import(LANG === "hi" ? "./script.hi.mjs" : "./script.mjs");
+const SUFFIX = LANG === "en" ? "" : `-${LANG}`;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "out");
@@ -34,7 +37,8 @@ function duration(file) {
   return m ? +m[1] * 3600 + +m[2] * 60 + +m[3] : 0;
 }
 
-function voice(key, text) {
+function voice(baseKey, text) {
+  const key = `${baseKey}${SUFFIX}`;
   const wav = path.join(TMP, `${key}.wav`);
   const stamp = path.join(TMP, `${key}.txt`);
   const id = `${JSON.stringify(VOICE)}|${text}`;
@@ -45,6 +49,7 @@ function voice(key, text) {
       execFileSync("aws", [
         "polly", "synthesize-speech", "--region", "us-east-1", "--profile", "default",
         "--engine", VOICE.polly, "--voice-id", VOICE.name, "--output-format", "mp3", "--sample-rate", "24000",
+        ...(VOICE.lang ? ["--language-code", VOICE.lang] : []),
         "--text", spoken, raw,
       ], { stdio: "ignore" });
     } else {
@@ -74,7 +79,7 @@ async function recorder(browser, name) {
     async finish() {
       const video = page.video();
       await context.close();
-      const file = path.join(TMP, `${name}.webm`);
+      const file = path.join(TMP, `${name}${SUFFIX}.webm`);
       renameSync(await video.path(), file);
       return file;
     },
@@ -114,7 +119,7 @@ const OVERLAY = `
     s.textContent = \`
       #vcap { position: fixed; left: 0; right: 0; bottom: 0; z-index: 99; padding: 18px 9vw 22px;
         background: linear-gradient(180deg, transparent, rgb(10 8 6 / .86) 30%); color: #f4ece0;
-        font: 500 19.5px/1.45 Inter, system-ui, sans-serif; text-align: center; text-wrap: balance; pointer-events: none; }
+        font: 500 19.5px/1.45 Inter, "Noto Sans Devanagari", system-ui, sans-serif; text-align: center; text-wrap: balance; pointer-events: none; }
       #vtag { position: fixed; top: 14px; right: 18px; z-index: 99; padding: 6px 12px; border-radius: 99px;
         background: rgb(10 8 6 / .7); color: #d4b06a; font: 600 11px Inter, system-ui, sans-serif;
         letter-spacing: .1em; text-transform: uppercase; pointer-events: none; }
@@ -313,7 +318,7 @@ async function recordDemo(browser, items) {
 // ---- Assembly ----------------------------------------------------------
 
 function encode(part, name) {
-  const out = path.join(TMP, `${name}.mp4`);
+  const out = path.join(TMP, `${name}${SUFFIX}.mp4`);
   const inputs = ["-ss", part.start.toFixed(3), "-i", part.video];
   const mix = [];
   part.cues.forEach((c, i) => {
@@ -339,7 +344,7 @@ const srtTime = (t) => {
 function assemble(parts) {
   const files = parts.map((p, i) => encode(p, `part-${i}`));
   const total = parts.reduce((a, p) => a + p.length, 0);
-  const out = path.join(OUT, "reminisce-demo.mp4");
+  const out = path.join(OUT, `reminisce-demo${SUFFIX}.mp4`);
   const ins = files.flatMap((f) => ["-i", f]);
   const cat = files.map((_, i) => `[${i}:v][${i}:a]`).join("") + `concat=n=${files.length}:v=1:a=1[v0][a0]`;
   // Normalise the voice to YouTube's loudness target, then fade in and out.
@@ -357,14 +362,14 @@ function assemble(parts) {
     }
     offset += p.length;
   }
-  writeFileSync(path.join(OUT, "reminisce-demo.srt"), srt.join("\n"));
+  writeFileSync(path.join(OUT, `reminisce-demo${SUFFIX}.srt`), srt.join("\n"));
   return { out, total };
 }
 
 // ---- Main --------------------------------------------------------------
 
 const step = process.argv[2] ?? "all";
-const saved = path.join(TMP, "parts.json");
+const saved = path.join(TMP, `parts${SUFFIX}.json`);
 const parts = existsSync(saved) ? JSON.parse(readFileSync(saved, "utf8")) : {};
 const save = () => writeFileSync(saved, JSON.stringify(parts, null, 2));
 
