@@ -13,6 +13,7 @@ import Timeline from "./views/Timeline.jsx";
 import GroupSetup from "./views/GroupSetup.jsx";
 import GroupKit from "./views/GroupKit.jsx";
 import Account from "./views/Account.jsx";
+import PersonForm from "./views/PersonForm.jsx";
 
 const EMPTY = { name: "", region: "", era: "", loves: [], learned: [], shown: [], portrait: { loves: [], less: [] } };
 const NO_GROUP = { name: "", residents: [] };
@@ -39,6 +40,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [people, setPeople] = useState([]);
   const [account, setAccount] = useState(null);
+  const [editing, setEditing] = useState("new"); // "new" or "current", for the person form
   const careHome = account?.kind === "carehome";
 
   // Latest state for async auth handlers, which outlive the render they started in.
@@ -157,6 +159,28 @@ export default function App() {
   async function openAccount() {
     setView("account");
     if (user) setPeople(await cloud.listPeople().catch(() => people));
+  }
+
+  // Signed-in carers add and edit people with the short form.
+  async function savePersonForm(p, { prepare }) {
+    if (editing === "current") return start({ ...profile, ...p });
+    const fresh = { ...EMPTY, ...p };
+    // Save whoever is open now before switching, so nothing waits on the debounce.
+    if (profile.cloudId) await cloud.savePerson(profile.cloudId, { profile, kit, journal, timeline }).catch(() => {});
+    if (prepare) return start({ ...fresh, fresh: true });
+    const created = await cloud.createPerson({ profile: fresh, kit: null, journal: [], timeline: null });
+    setPeople((list) => [created, ...list]);
+    setView("account");
+  }
+
+  function addPerson() {
+    setEditing("new");
+    setView("person");
+  }
+
+  function editPerson() {
+    setEditing("current");
+    setView("person");
   }
 
   async function chooseKind(choice) {
@@ -314,7 +338,7 @@ export default function App() {
         </button>
         {view === "kit" && (
           <nav className="masthead-actions">
-            <button className="ghost" onClick={() => setView("home")}>
+            <button className="ghost" onClick={() => (user ? editPerson() : setView("home"))}>
               Edit details
             </button>
             <button className="ghost" onClick={newPerson}>
@@ -362,6 +386,17 @@ export default function App() {
         )}
         {view === "timeline" && timeline && <Timeline timeline={timeline} name={profile.name} onBack={() => setView("kit")} />}
         {view === "groupSetup" && <GroupSetup group={group} people={people} onChange={changeGroup} onSubmit={startGroup} />}
+        {view === "person" && (
+          <PersonForm
+            key={`${editing}-${profile.cloudId ?? ""}`}
+            initial={editing === "current" ? profile : { name: "", region: "", era: "", loves: [] }}
+            mode={editing}
+            noun={careHome ? "resident" : "person"}
+            careHome={careHome}
+            onSave={savePersonForm}
+            onCancel={() => setView(editing === "current" && kit ? "kit" : "account")}
+          />
+        )}
         {view === "account" && (
           <Account
             user={user}
@@ -371,12 +406,10 @@ export default function App() {
             currentId={profile.cloudId}
             onOpen={(p) => {
               adoptPerson(p);
-              setView(p.kit ? "kit" : "home");
+              if (p.kit) setView("kit");
+              else editPerson();
             }}
-            onAdd={() => {
-              newPerson();
-              setView("home");
-            }}
+            onAdd={addPerson}
             onSignOut={() => signOut()}
             onDeleteAll={deleteAll}
           />

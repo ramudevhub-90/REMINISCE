@@ -427,3 +427,8 @@ button.kind-card:hover { border-color: var(--gold); }
 .email-code { max-width: 460px; }
 .code-input { font: 600 28px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.4em; text-align: center; }
 .email-code-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+/* Short add / edit form for signed-in carers */
+.person-form { padding: 32px 0 8px; display: grid; gap: 14px; max-width: 640px; }
+.person-form h1 { font-size: clamp(30px, 6vw, 44px); margin-bottom: 8px; }
+.person-form .eyebrow { margin: 0; }
