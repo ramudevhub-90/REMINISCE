@@ -1,7 +1,10 @@
 import { defineAuth } from "@aws-amplify/backend";
 
-// Carers can sign in with email; judges and first-time visitors use guest
-// (unauthenticated identity pool) access, so there's no sign-up wall.
+// Passwordless: carers enter their email and a 6-digit code, for both signing
+// up and signing in. Judges and first-time visitors can skip this entirely and
+// use guest (unauthenticated identity pool) access.
 export const auth = defineAuth({
-  loginWith: { email: true },
+  loginWith: {
+    email: { otpLogin: true },
+  },
 });

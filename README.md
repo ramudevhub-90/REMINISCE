@@ -15,6 +15,7 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com). **Live demo:**
 - **Taste portrait.** Qloo's mood and genre tags on what lit them up become a short portrait ("Baba tends to respond to Old Hindi, Emotive…") that the next kit leans on.
 - **Their world.** A timeline of the years they grew up in, five at a time: the films of each window from Qloo, with the sound of the era.
 - **Group sessions for care homes.** Each resident's tastes are expanded through Qloo separately; picks are ranked by how many residents they reach ("Reaches everyone"), with a combined query to fill gaps.
+- **Accounts (optional).** Sign in to keep several people, their learning and a care-home group in the cloud, on any device. Guest mode still works without signing up.
 - **Why this?** Every suggestion shows its Qloo affinity, the request sent, and that it describes people with similar tastes, never the individual.
 
 ## Architecture
@@ -36,10 +37,11 @@ AppSync ── startKit ──► Lambda start-kit ──► SQS ──► Lambd
 
 ## Privacy
 
-- Visitors use the app as guests. No sign-up is needed.
-- The person's name and profile stay in the carer's browser. The backend receives only taste seeds (e.g. "Kishore Kumar", "Kolkata").
+- **Guests** (no sign-up): each person's details, journal and portrait stay in the browser on that device.
+- **With an account** (optional, email + password via Cognito): people, journals, portraits and care-home groups are saved to DynamoDB with owner-only access, so only that account can read them, and follow the carer to any device. Anything done as a guest moves into the account on sign-in. *Delete my data* removes every record and the account itself.
+- Qloo only ever receives taste seeds (e.g. "Kishore Kumar", "Kolkata", "1960s"), never a name.
 - The Qloo key is an SSM SecureString read by the worker at runtime. It is never in the repo, the browser or logs.
-- Jobs can only be read back by the identity that created them.
+- Agent jobs can only be read back by the identity that created them.
 
 ## Deploy your own
 

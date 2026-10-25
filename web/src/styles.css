@@ -383,3 +383,47 @@ code {
 .group-go { margin: 28px 0 8px; display: grid; gap: 8px; justify-items: start; }
 .reaches { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--sage); }
 .reaches.quiet { color: var(--muted); font-weight: 500; }
+
+/* Account */
+.masthead { flex-wrap: wrap; }
+.account-button {
+  margin-left: auto; background: var(--card); color: var(--ink); border: 1px solid var(--rule);
+  border-radius: 999px; padding: 8px 16px; min-height: 40px; font-weight: 600; font-size: 15px;
+}
+.account-button:hover { border-color: var(--gold); }
+.masthead-actions + .account-button { margin-left: 4px; }
+.auth-box { max-width: 480px; margin: 8px 0 32px; }
+.people-list .resident.current { border-color: var(--gold); }
+.account-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0 32px; }
+.danger-zone { border-top: 1px solid var(--rule); padding-top: 24px; display: grid; gap: 10px; justify-items: start; }
+.danger { background: var(--error); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 600; min-height: 48px; }
+
+/* Account type and plans */
+.kind-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 820px; margin-bottom: 24px; }
+.kind-card {
+  display: grid; gap: 10px; align-content: start; text-align: left; padding: 22px; background: var(--card); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); font: inherit;
+}
+button.kind-card { cursor: pointer; }
+button.kind-card:hover { border-color: var(--gold); }
+.kind-card strong { font: 500 22px var(--serif); }
+.kind-card > span { color: var(--ink-soft); }
+.plans { margin-bottom: 40px; }
+.plan-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.plan { display: grid; gap: 10px; align-content: start; justify-items: start; padding: 22px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+.plan.featured { border-color: var(--gold); }
+.plan h3 { font: 500 26px var(--serif); margin: 0; }
+.plan .eyebrow { margin: 0; }
+.plan ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-soft); font-size: 15px; }
+.from-residents { margin-bottom: 20px; }
+.pick-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pick-list label { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.pick-list input { width: 20px; height: 20px; min-height: 0; margin-top: 3px; accent-color: var(--accent); }
+.pick-list strong { display: block; font: 500 17px var(--serif); }
+.pick-list .muted { font-size: 14px; }
+@media (max-width: 720px) { .kind-cards, .plan-row { grid-template-columns: 1fr; } }
+
+/* Email code sign-in */
+.email-code { max-width: 460px; }
+.code-input { font: 600 28px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.4em; text-align: center; }
+.email-code-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }

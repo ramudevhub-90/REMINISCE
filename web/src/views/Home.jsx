@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PERSONAS } from "../personas.js";
 
-export default function Home({ initial, onSubmit, onGroup }) {
+export default function Home({ initial, onSubmit, onGroup, onAccount, signedIn }) {
   const [form, setForm] = useState(initial);
   const [draft, setDraft] = useState("");
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -20,7 +20,7 @@ export default function Home({ initial, onSubmit, onGroup }) {
     // A different person (name, place or decade) starts the learning afresh;
     // adding or removing loves keeps what past sessions taught us.
     const same = form.name === initial.name && form.region === initial.region && form.era === initial.era;
-    if (loves.length) onSubmit({ ...form, loves, ...(same ? {} : { learned: [], shown: [], fresh: true }) });
+    if (loves.length) onSubmit({ ...form, loves, ...(same ? {} : { learned: [], shown: [], fresh: true, cloudId: undefined }) });
   }
 
   return (
@@ -85,6 +85,44 @@ export default function Home({ initial, onSubmit, onGroup }) {
         </button>
       </section>
 
+      <section className="plans" aria-labelledby="plans-heading">
+        <h2 id="plans-heading" className="section-label">
+          Plans
+        </h2>
+        <div className="plan-row">
+          <div className="plan">
+            <p className="eyebrow">For families</p>
+            <h3>Free</h3>
+            <ul>
+              <li>Session kits, journal and taste portrait for each relative</li>
+              <li>Their world: the films of the years they grew up in</li>
+              <li>Use as a guest, or sign in to keep it on every device</li>
+            </ul>
+            {!signedIn && (
+              <button className="secondary" onClick={onAccount}>
+                Create a free account
+              </button>
+            )}
+          </div>
+          <div className="plan featured">
+            <p className="eyebrow">For care homes</p>
+            <h3>Care home package</h3>
+            <ul>
+              <li>Every resident’s profile, journal and portrait in one account</li>
+              <li>Group sessions ranked by how many residents each pick reaches</li>
+              <li>Add residents to a group from your list in one tap</li>
+              <li>Coming next: shared staff logins and monthly reports</li>
+            </ul>
+            <p className="muted small">Free while we pilot with care homes.</p>
+            {!signedIn && (
+              <button className="primary" onClick={onAccount}>
+                Set up your care home
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
       <form className="paper form" onSubmit={submit}>
         <h2 className="section-label">Or tell us about your person</h2>
         <label className="field">
@@ -136,7 +174,8 @@ export default function Home({ initial, onSubmit, onGroup }) {
           Prepare a session
         </button>
         <p className="privacy">
-          Their name stays on this device. Only the things they love, the place and the decade are used to search Qloo.
+          Only the things they love, the place and the decade are used to search Qloo. As a guest, everything stays on this
+          device; sign in to keep it in your private account instead.
         </p>
       </form>
     </div>

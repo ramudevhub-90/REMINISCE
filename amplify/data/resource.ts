@@ -23,6 +23,37 @@ const schema = a
       .disableOperations(["queries", "mutations", "subscriptions"])
       .authorization((allow) => [allow.owner()]),
 
+    // Signed-in carers keep their people and care-home groups in the cloud,
+    // readable only by the account that owns them. Guests keep everything on
+    // their device instead.
+    Person: a
+      .model({
+        name: a.string(),
+        profile: a.json(),
+        kit: a.json(),
+        journal: a.json(),
+        timeline: a.json(),
+      })
+      .authorization((allow) => [allow.owner()]),
+
+    // What kind of carer this account is: a family member, or a care home
+    // holding many residents (whose name is kept for the group sessions).
+    CarerAccount: a
+      .model({
+        kind: a.string().required(),
+        orgName: a.string(),
+      })
+      .authorization((allow) => [allow.owner()]),
+
+    CareGroup: a
+      .model({
+        name: a.string(),
+        group: a.json(),
+        kit: a.json(),
+        journal: a.json(),
+      })
+      .authorization((allow) => [allow.owner()]),
+
     KitJobView: a.customType({
       id: a.id().required(),
       status: a.string().required(),

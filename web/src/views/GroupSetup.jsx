@@ -4,7 +4,21 @@ import { DEMO_GROUP } from "../personas.js";
 const BLANK = { name: "", region: "", era: "", loves: [] };
 
 // Who's in the lounge today. Names stay on this device.
-export default function GroupSetup({ group, onChange, onSubmit }) {
+export default function GroupSetup({ group, people = [], onChange, onSubmit }) {
+  const [picked, setPicked] = useState([]);
+  // Residents already saved to the account who aren't in today's group yet.
+  const saved = people.filter((p) => p.profile?.loves?.length && !group.residents.some((r) => r.personId === p.id));
+  const addPicked = () => {
+    const chosen = saved.filter((p) => picked.includes(p.id));
+    onChange({
+      ...group,
+      residents: [
+        ...group.residents,
+        ...chosen.map((p) => ({ personId: p.id, name: p.name, region: p.profile.region, era: p.profile.era, loves: p.profile.loves })),
+      ],
+    });
+    setPicked([]);
+  };
   const [form, setForm] = useState({ ...BLANK, region: group.residents.at(-1)?.region ?? "" });
   const [draft, setDraft] = useState("");
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -76,6 +90,32 @@ export default function GroupSetup({ group, onChange, onSubmit }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {saved.length > 0 && (
+        <section className="paper form from-residents">
+          <h2 className="section-label">Add from your residents</h2>
+          <ul className="pick-list">
+            {saved.map((p) => (
+              <li key={p.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={picked.includes(p.id)}
+                    onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((id) => id !== p.id))}
+                  />
+                  <span>
+                    <strong>{p.name}</strong>
+                    <span className="muted">{p.profile.loves.join(" · ")}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button className="secondary" disabled={!picked.length} onClick={addPicked}>
+            Add {picked.length || ""} to today’s group
+          </button>
+        </section>
       )}
 
       <form className="paper form" onSubmit={addResident}>
