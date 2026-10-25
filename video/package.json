@@ -1,0 +1,13 @@
+{
+  "name": "reminisce-video",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Reminisce demo video: narration, scene and app recordings, MP4 assembly.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "playwright": "^1.48.0"
+  }
+}

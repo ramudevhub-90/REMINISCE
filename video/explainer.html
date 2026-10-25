@@ -1,0 +1,559 @@
+<title>How Reminisce Works</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* Layout: a single cinema "stage" (16:9 on wide screens, portrait on phones) that
+   plays scenes in order, with captions and controls underneath.
+   Deliberately one look: the warm, dim room where a session happens. */
+:root {
+  --night: #15110d;
+  --stage: #1d1813;
+  --stage-2: #262019;
+  --paper: #f4ece0;
+  --soft: #cdbfae;
+  --muted: #8f8273;
+  --rule: #3a3129;
+  --ember: #e08a5f;
+  --gold: #d4b06a;
+  --sage: #9cc3b6;
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--night); color: var(--paper); }
+body {
+  font: 16px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 18px; }
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.top h1 { font: 500 26px/1.2 var(--display); margin: 0; text-wrap: balance; }
+.top p { margin: 0; color: var(--muted); font-size: 14px; }
+
+/* Stage */
+.stage {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden;
+  background: radial-gradient(ellipse at 30% 0%, #2c241b, var(--stage) 60%);
+  border: 1px solid var(--rule); container-type: inline-size; max-width: 100%;
+}
+@media (max-width: 640px) { .stage { aspect-ratio: 4 / 5; } }
+.scene {
+  position: absolute; inset: 0; padding: 5cqw 6cqw; display: flex; flex-direction: column;
+  justify-content: center; gap: 2.2cqw; opacity: 0; visibility: hidden; transition: opacity 0.6s ease;
+}
+.scene.on { opacity: 1; visibility: visible; }
+@container (max-width: 600px) { .scene { padding: 7cqw 6cqw; gap: 3.5cqw; } }
+
+.eyebrow { font: 600 max(11px, 1.25cqw) var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin: 0; }
+.h { font: 500 clamp(22px, 4.6cqw, 58px)/1.08 var(--display); margin: 0; text-wrap: balance; }
+.h em { font-style: italic; color: var(--ember); }
+.sub { font: 400 clamp(14px, 1.9cqw, 22px)/1.45 var(--body); color: var(--soft); margin: 0; max-width: 60ch; }
+@container (max-width: 600px) { .h { font-size: clamp(22px, 7.6cqw, 40px); } .sub { font-size: clamp(13px, 3.9cqw, 18px); } .eyebrow { font-size: max(10px, 2.8cqw); } }
+
+/* Entrance: elements start visible; when a scene is entered by the player they
+   replay a short rise. The first frame at rest is complete. */
+.play .scene.on .rise { animation: rise 0.7s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--d, 0) * 1s); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@media (prefers-reduced-motion: reduce) { .play .scene.on .rise { animation: none; } .scene { transition: none; } }
+
+/* Shared pieces */
+.chip { display: inline-flex; align-items: center; gap: 0.5em; padding: 0.45em 1em; border-radius: 999px;
+  background: var(--stage-2); border: 1px solid var(--rule); font: 500 clamp(12px, 1.6cqw, 19px) var(--body); color: var(--paper); }
+.chip.gold { border-color: var(--gold); }
+.chip.lit { background: var(--gold); color: #1a120c; border-color: var(--gold); }
+.row { display: flex; gap: 1.2cqw; flex-wrap: wrap; align-items: center; }
+.panel { background: var(--stage-2); border: 1px solid var(--rule); border-radius: 1.6cqw; padding: 2cqw 2.4cqw; min-width: 0; }
+@container (max-width: 600px) { .panel { border-radius: 3cqw; padding: 3.5cqw; } .chip { font-size: clamp(11px, 3.4cqw, 15px); } }
+.mono { font: 400 clamp(10px, 1.15cqw, 14px)/1.5 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.tile { aspect-ratio: 1; border-radius: 1.2cqw; display: grid; place-items: center; font: italic 500 clamp(18px, 3.4cqw, 44px) var(--display);
+  color: var(--ember); background: linear-gradient(145deg, #3a2f24, #221b14); }
+.bar { height: 0.6cqw; min-height: 5px; border-radius: 99px; background: #3a3129; overflow: hidden; }
+.bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--ember)); border-radius: 99px; }
+.play .scene.on .bar span { animation: grow 1.2s ease both; animation-delay: calc(var(--d, 0) * 1s); }
+@keyframes grow { from { width: 0 !important; } }
+
+/* Scene 1: title */
+.title-mark { width: 5cqw; height: 5cqw; min-width: 34px; min-height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--gold), var(--ember) 70%); }
+.title-name { font: 500 clamp(40px, 9cqw, 120px)/1 var(--display); margin: 0; letter-spacing: -0.02em; }
+
+/* Scene 2: problem */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 4cqw; align-items: center; }
+@container (max-width: 600px) { .split { grid-template-columns: 1fr; gap: 5cqw; } }
+.bignum { font: 500 clamp(48px, 12cqw, 160px)/0.9 var(--display); color: var(--ember); margin: 0; }
+.bubble { position: relative; background: var(--paper); color: #241c15; border-radius: 2cqw; padding: 2cqw 2.4cqw;
+  font: italic 500 clamp(16px, 2.6cqw, 32px)/1.3 var(--display); }
+.bubble::after { content: ""; position: absolute; left: 3cqw; bottom: -1.4cqw; border: 1.4cqw solid transparent; border-top-color: var(--paper); border-bottom: 0; }
+.who { color: var(--muted); font-size: clamp(12px, 1.4cqw, 16px); margin-top: 2.4cqw; }
+
+/* Scene 3: form */
+.form { display: grid; gap: 1.2cqw; max-width: 46cqw; }
+@container (max-width: 600px) { .form { max-width: none; gap: 2.4cqw; } }
+.field { display: grid; gap: 0.3cqw; }
+.field label { font-size: clamp(11px, 1.2cqw, 14px); color: var(--muted); font-weight: 600; }
+.field div { background: var(--night); border: 1px solid var(--rule); border-radius: 0.9cqw; padding: 0.8cqw 1.2cqw; font-size: clamp(13px, 1.7cqw, 20px); }
+.two { display: grid; grid-template-columns: 2fr 1fr; gap: 1.2cqw; }
+
+/* Scene 4: resolve */
+.resolve { display: grid; gap: 1.4cqw; }
+.resolve .line { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr); gap: 2cqw; align-items: center; }
+.arrow { color: var(--gold); font-size: clamp(16px, 2.4cqw, 28px); }
+.found strong { display: block; font: 500 clamp(15px, 2.1cqw, 26px) var(--display); }
+.found span { color: var(--soft); font-size: clamp(12px, 1.4cqw, 17px); }
+@container (max-width: 600px) { .resolve .line { grid-template-columns: 1fr; gap: 1.5cqw; } .resolve .arrow { display: none; } }
+
+/* Scene 5: expansion */
+.cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2cqw; }
+@container (max-width: 600px) { .cols { grid-template-columns: 1fr; gap: 3cqw; } }
+.col h3 { font: 500 clamp(15px, 2cqw, 24px) var(--display); margin: 0 0 1cqw; }
+.col h3 small { display: block; font: 500 clamp(10px, 1.1cqw, 13px) var(--body); color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; }
+.aff { display: grid; gap: 0.35cqw; margin-top: 1cqw; }
+.aff-top { display: flex; justify-content: space-between; gap: 1cqw; font-size: clamp(12px, 1.45cqw, 17px); }
+.aff-top b { font-weight: 500; }
+.aff-top i { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+@container (max-width: 600px) { .col .aff:nth-of-type(n+3) { display: none; } .col h3 { margin-bottom: 0.5cqw; } }
+
+/* Scene 6: kit phone */
+.device { width: min(34cqw, 100%); aspect-ratio: 9 / 16; border-radius: 3cqw; border: 1px solid var(--rule); background: #f6f0e6; color: #2a221c;
+  padding: 2.4cqw 1.8cqw; display: grid; align-content: start; gap: 1cqw; justify-self: center; overflow: hidden; max-width: 100%; }
+.device .k-eyebrow { font: 600 max(8px, 0.9cqw) var(--body); letter-spacing: 0.12em; color: #a9823a; text-transform: uppercase; }
+.device .k-title { font: 500 clamp(14px, 2.3cqw, 28px)/1.1 var(--display); }
+.device .k-title em { color: #9c4221; }
+.device .k-btn { background: #9c4221; color: #fffaf2; border-radius: 99px; text-align: center; padding: 0.7cqw; font: 600 max(9px, 1.05cqw) var(--body); }
+.device .k-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9cqw; }
+.device .k-grid .tile { background: linear-gradient(145deg, #efe5d4, #fffaf2); color: #9c4221; border-radius: 0.8cqw; font-size: clamp(14px, 2.4cqw, 30px); }
+.device .k-name { font: 500 max(9px, 1.1cqw) var(--display); }
+.device .k-h { font: 500 max(11px, 1.4cqw) var(--display); }
+@container (max-width: 600px) { .device { width: 52cqw; border-radius: 5cqw; padding: 4cqw 3cqw; gap: 1.6cqw; }
+  .device .k-eyebrow { font-size: 2cqw; } .device .k-btn, .device .k-name { font-size: 2.2cqw; } .device .k-h { font-size: 3cqw; } .device .k-title { font-size: 4.6cqw; } .device .k-grid { gap: 1.6cqw; } }
+.list { display: grid; gap: 1.2cqw; margin: 0; padding: 0; list-style: none; }
+.list li { display: grid; grid-template-columns: auto 1fr; gap: 1.2cqw; align-items: baseline; font-size: clamp(13px, 1.7cqw, 20px); color: var(--soft); }
+.list li b { color: var(--paper); font-weight: 600; }
+.list .dot { width: 0.9cqw; height: 0.9cqw; min-width: 8px; min-height: 8px; border-radius: 50%; background: var(--gold); transform: translateY(-0.1em); }
+
+/* Scene 7: why sheet */
+.sheet { background: var(--paper); color: #241c15; border-radius: 2cqw; padding: 2.6cqw 3cqw; display: grid; gap: 1.2cqw; max-width: 64cqw; }
+@container (max-width: 600px) { .sheet { max-width: none; padding: 5cqw; gap: 2.4cqw; border-radius: 4cqw; } }
+.sheet .eyebrow { color: #a9823a; }
+.sheet .statement { font: 400 clamp(16px, 2.5cqw, 30px)/1.35 var(--display); margin: 0; }
+.sheet .bar { background: #e9dfcf; }
+.sheet .note { color: #6b5f53; font-size: clamp(12px, 1.4cqw, 16px); margin: 0; }
+.sheet .mono { color: #6b5f53; }
+
+/* Scene 8: session card */
+.session { display: grid; justify-items: center; text-align: center; gap: 1.3cqw; }
+.session .tile { width: min(18cqw, 160px); font-size: clamp(36px, 7cqw, 80px); border-radius: 2cqw; box-shadow: 0 2cqw 5cqw rgb(0 0 0 / .45); }
+.session .name { font: 500 clamp(22px, 4cqw, 48px) var(--display); margin: 0; }
+.session .prompt { font: italic 400 clamp(14px, 1.9cqw, 22px)/1.4 var(--display); color: var(--soft); max-width: 50ch; margin: 0; }
+@container (max-width: 600px) { .session .tile { width: 34cqw; } .session { gap: 2.6cqw; } }
+.play .scene.on .tap { animation: tap 0.5s ease both; animation-delay: calc(var(--d, 0) * 1s); }
+@keyframes tap { 0% { background: var(--stage-2); color: var(--paper); border-color: var(--rule); transform: scale(1); } 50% { transform: scale(1.08); } 100% { background: var(--gold); color: #1a120c; border-color: var(--gold); transform: scale(1); } }
+
+/* Scene 9: loop */
+.weeks { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 1.6cqw; align-items: stretch; }
+.weeks .panel h3 { font: 500 clamp(15px, 2cqw, 24px) var(--display); margin: 0 0 1cqw; }
+.weeks .panel p { margin: 0; color: var(--soft); font-size: clamp(12px, 1.45cqw, 17px); }
+.weeks .arrow { align-self: center; }
+@container (max-width: 600px) { .weeks { grid-template-columns: 1fr; gap: 2cqw; } .weeks .arrow { justify-self: center; transform: rotate(90deg); } }
+
+/* Scene 10: architecture */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1.2cqw; align-items: stretch; }
+.flow .panel { display: grid; gap: 0.6cqw; align-content: start; }
+.flow .panel strong { font: 500 clamp(13px, 1.75cqw, 21px) var(--display); }
+.flow .panel span { color: var(--soft); font-size: clamp(11px, 1.25cqw, 15px); line-height: 1.4; }
+.flow .panel.qloo { border-color: var(--ember); }
+.back { display: flex; align-items: center; gap: 1.2cqw; color: var(--sage); font-size: clamp(12px, 1.45cqw, 17px); }
+.back::before { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--sage)); }
+@container (max-width: 600px) { .flow { grid-template-columns: 1fr 1fr; gap: 2cqw; } .flow .panel:last-child { grid-column: span 2; } }
+
+/* Scene 11: why qloo + next */
+.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2cqw; }
+.points .panel h3 { font: 500 clamp(14px, 1.9cqw, 23px) var(--display); margin: 0 0 0.8cqw; }
+.points .panel p { margin: 0; color: var(--soft); font-size: clamp(12px, 1.4cqw, 16px); }
+@container (max-width: 600px) { .points { grid-template-columns: 1fr; gap: 2.4cqw; } }
+
+/* Controls and captions */
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn { font: 600 15px var(--body); color: var(--night); background: var(--ember); border: 0; border-radius: 999px; padding: 10px 20px; min-height: 44px; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--paper); border: 1px solid var(--rule); }
+.btn:focus-visible, .chap:focus-visible { outline: 3px solid var(--sage); outline-offset: 2px; }
+.progress { flex: 1 1 200px; height: 6px; background: var(--rule); border-radius: 99px; overflow: hidden; min-width: 120px; }
+.progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), var(--ember)); }
+.time { color: var(--muted); font: 400 13px var(--mono); font-variant-numeric: tabular-nums; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--soft); font-size: 14px; cursor: pointer; min-height: 44px; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--ember); }
+.caption { background: var(--stage); border: 1px solid var(--rule); border-radius: 14px; padding: 16px 20px; min-height: 92px; }
+.caption p { margin: 0; font-size: 17px; line-height: 1.55; color: var(--paper); max-width: 72ch; }
+.caption small { display: block; color: var(--gold); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+.chapters { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.chap { font: 500 13px var(--body); color: var(--soft); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; cursor: pointer; min-height: 36px; }
+.chap[aria-current="true"] { background: var(--stage-2); color: var(--paper); border-color: var(--gold); }
+.foot { color: var(--muted); font-size: 13px; }
+.foot a { color: var(--sage); }
+
+/* Record mode (used to render the video): a 1280x720 stage scaled 1.5x into a 1920x1080 frame. */
+body.record { padding: 0; zoom: 1.5; }
+body.record .wrap { max-width: none; display: block; }
+body.record .top, body.record .controls, body.record .caption, body.record .chapters, body.record .foot { display: none; }
+body.record .stage { position: fixed; top: 0; left: 0; width: 1280px; height: 720px; aspect-ratio: auto; border-radius: 0; border: 0; }
+body.record .scene { padding: 40px 80px 120px; }
+.rec-cap { display: none; }
+body.record .rec-cap {
+  display: block; position: fixed; left: 0; top: 600px; width: 1280px; height: 120px; z-index: 5;
+  padding: 18px 100px 0; background: linear-gradient(180deg, transparent, rgb(10 8 6 / .88) 25%);
+  font: 500 20px/1.45 var(--body); color: var(--paper); text-align: center; text-wrap: balance;
+}
+body.record .rec-tag { display: block; position: fixed; top: 18px; right: 24px; z-index: 5; font: 500 11px var(--body); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.rec-tag { display: none; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>How Reminisce works</h1>
+    <p>A two-and-a-half minute walkthrough · Qloo Agentic Hackathon</p>
+  </header>
+
+  <div class="stage" id="stage" aria-live="off">
+
+    <section class="scene on" data-title="Reminisce" data-secs="9">
+      <div class="row rise"><span class="title-mark" aria-hidden="true"></span><p class="eyebrow" style="margin:0">A companion for dementia carers</p></div>
+      <p class="title-name rise" style="--d:.15">Reminisce</p>
+      <p class="h rise" style="--d:.35"><em>Small, familiar joys, chosen for them.</em></p>
+      <p class="sub rise" style="--d:.6">An agent that uses Qloo’s taste graph to rebuild the music, films and food of someone’s youth, and gets better every session.</p>
+    </section>
+
+    <section class="scene" data-title="The problem" data-secs="12">
+      <div class="split">
+        <div class="rise">
+          <p class="eyebrow">The problem</p>
+          <p class="bignum">55M+</p>
+          <p class="sub">people live with dementia worldwide. Many can no longer say what they like, but familiar songs and tastes from their youth can still reach them.</p>
+        </div>
+        <div class="rise" style="--d:.5">
+          <div class="bubble">“What do I even talk about with Dad today? I only know he loved Kishore Kumar.”</div>
+          <p class="who">A carer, every day</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-title="A few fragments" data-secs="11">
+      <p class="eyebrow rise">Step 1 · The carer shares a few fragments</p>
+      <div class="split">
+        <div class="form panel rise" style="--d:.2">
+          <div class="field"><label>What do you call them?</label><div>Baba</div></div>
+          <div class="two">
+            <div class="field"><label>Where they grew up</label><div>Kolkata</div></div>
+            <div class="field"><label>Roughly when</label><div>1960s</div></div>
+          </div>
+          <div class="field"><label>Things they’ve always loved</label></div>
+          <div class="row">
+            <span class="chip gold rise" style="--d:.7">Kishore Kumar</span>
+            <span class="chip gold rise" style="--d:1.0">Guide (1965)</span>
+            <span class="chip gold rise" style="--d:1.3">Fish curry</span>
+          </div>
+        </div>
+        <div class="rise" style="--d:1.6">
+          <p class="h">Three fragments are enough to start.</p>
+          <p class="sub" style="margin-top:1.6cqw">The name never leaves the phone. Only the place, the decade and the things they love are sent to Qloo.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-title="Finding them in Qloo" data-secs="12">
+      <p class="eyebrow rise">Step 2 · The agent finds each fragment in Qloo</p>
+      <div class="resolve">
+        <div class="line rise" style="--d:.3"><span class="chip">Kishore Kumar</span><span class="arrow">→</span><div class="found"><strong>Singer</strong><span>Qloo entity · Bollywood, Hindi</span></div></div>
+        <div class="line rise" style="--d:.8"><span class="chip">Guide (1965)</span><span class="arrow">→</span><div class="found"><strong>Film, 1965</strong><span>The year tells the agent it’s a film</span></div></div>
+        <div class="line rise" style="--d:1.3"><span class="chip">Fish curry</span><span class="arrow">→</span><div class="found"><strong>Dish</strong><span>Qloo tag for restaurants known for it</span></div></div>
+      </div>
+      <p class="mono rise" style="--d:1.8">qloo api search --query "Kishore Kumar" · qloo api tags --query "fish curry"</p>
+    </section>
+
+    <section class="scene" data-title="The taste graph" data-secs="15">
+      <p class="eyebrow rise">Step 3 · Qloo expands them across music, film and food</p>
+      <p class="h rise" style="--d:.15">What did <em>people with the same tastes</em> love back then?</p>
+      <div class="cols">
+        <div class="col panel rise" style="--d:.4">
+          <h3><small>Music · Qloo genre “Old Hindi”</small>Singers of their era</h3>
+          <div class="aff"><div class="aff-top"><b>Manna Dey</b><i>0.97</i></div><div class="bar"><span style="width:97%;--d:.6"></span></div></div>
+          <div class="aff"><div class="aff-top"><b>Mukesh</b><i>0.97</i></div><div class="bar"><span style="width:97%;--d:.75"></span></div></div>
+          <div class="aff"><div class="aff-top"><b>Talat Mahmood</b><i>0.94</i></div><div class="bar"><span style="width:94%;--d:.9"></span></div></div>
+        </div>
+        <div class="col panel rise" style="--d:.7">
+          <h3><small>Films · 1955 to 1980</small>Films of their youth</h3>
+          <div class="aff"><div class="aff-top"><b>Anand (1971)</b><i>0.94</i></div><div class="bar"><span style="width:94%;--d:.9"></span></div></div>
+          <div class="aff"><div class="aff-top"><b>Mughal-E-Azam (1960)</b><i>0.93</i></div><div class="bar"><span style="width:93%;--d:1.05"></span></div></div>
+          <div class="aff"><div class="aff-top"><b>Sholay (1975)</b><i>0.93</i></div><div class="bar"><span style="width:93%;--d:1.2"></span></div></div>
+        </div>
+        <div class="col panel rise" style="--d:1.0">
+          <h3><small>Food · near Kolkata</small>Fish curry, together</h3>
+          <div class="aff"><div class="aff-top"><b>Places known for fish curry</b></div></div>
+          <p class="sub" style="font-size:clamp(12px,1.4cqw,16px)">Popular with people aged 55+ who share these tastes</p>
+        </div>
+      </div>
+      <p class="sub rise" style="--d:1.4">The decade sets a release-year window for films, and Qloo’s own era genres keep the music in the right years.</p>
+    </section>
+
+    <section class="scene" data-title="The session kit" data-secs="12">
+      <div class="split">
+        <div class="device rise" aria-hidden="true">
+          <span class="k-eyebrow">Session 1 · Kolkata · 1960s</span>
+          <span class="k-title">A session for <em>Baba</em></span>
+          <span class="k-btn">Begin the session</span>
+          <span class="k-h">Music</span>
+          <div class="k-grid">
+            <div><div class="tile">L</div><span class="k-name">Lata Mangeshkar</span></div>
+            <div><div class="tile">M</div><span class="k-name">Manna Dey</span></div>
+          </div>
+          <span class="k-h">Films</span>
+          <div class="k-grid">
+            <div><div class="tile">A</div><span class="k-name">Anand</span></div>
+            <div><div class="tile">M</div><span class="k-name">Mughal-E-Azam</span></div>
+          </div>
+        </div>
+        <div class="rise" style="--d:.4">
+          <p class="eyebrow">Step 4 · A ready-to-use session kit</p>
+          <p class="h">Everything for today’s visit, in half a minute.</p>
+          <ul class="list" style="margin-top:2cqw">
+            <li><span class="dot"></span><span><b>Music</b> with photos and play links</span></li>
+            <li><span class="dot"></span><span><b>Film clips</b> from the years they grew up in</span></li>
+            <li><span class="dot"></span><span><b>Something to cook</b> together, and where it’s served</span></li>
+            <li><span class="dot"></span><span><b>Conversation starters</b> to open memories gently</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-title="Why this?" data-secs="12">
+      <p class="eyebrow rise">Every suggestion shows its evidence</p>
+      <div class="sheet rise" style="--d:.3">
+        <p class="eyebrow">Why this? · Lata Mangeshkar</p>
+        <p class="statement">People who love Kishore Kumar, Guide and fish curry tend to also love Lata Mangeshkar.</p>
+        <div class="bar"><span style="width:88%;--d:.8"></span></div>
+        <p class="note">Qloo affinity 0.88: how strongly people with these tastes lean towards it.</p>
+        <p class="note">This describes a group of people with similar tastes, not Baba personally.</p>
+        <p class="mono">qloo api insights --type artist --signal-entities … --signal-tags bollywood,hindi</p>
+      </div>
+    </section>
+
+    <section class="scene" data-title="Session mode" data-secs="13">
+      <div class="split">
+        <div class="session rise">
+          <p class="eyebrow" style="margin:0">Song</p>
+          <div class="tile" aria-hidden="true">M</div>
+          <p class="name">Manna Dey</p>
+          <p class="prompt">Play a favourite song. Watch for a smile, humming or a tapping foot.</p>
+          <div class="row" style="justify-content:center">
+            <span class="chip tap" style="--d:1.6">Lit up</span>
+            <span class="chip">A little</span>
+            <span class="chip">Not today</span>
+          </div>
+        </div>
+        <div class="rise" style="--d:.4">
+          <p class="eyebrow">Step 5 · Share it, one card at a time</p>
+          <p class="h">The carer only notes <em>what sparked.</em></p>
+          <p class="sub" style="margin-top:1.6cqw">Big photos and one simple prompt per card. A tap records the reaction: Lit up, A little or Not today, plus an optional note.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-title="It learns" data-secs="15">
+      <p class="eyebrow rise">Step 6 · The weekly loop</p>
+      <p class="h rise" style="--d:.15">Each session teaches the next one.</p>
+      <div class="weeks">
+        <div class="panel rise" style="--d:.4"><h3>Week 1</h3><p>Lata Mangeshkar, Manna Dey, Anand, Sholay…</p></div>
+        <span class="arrow rise" style="--d:.7">→</span>
+        <div class="panel rise" style="--d:.9"><h3>Lit them up</h3><div class="row"><span class="chip lit">Manna Dey</span><span class="chip lit">Anand</span></div></div>
+        <span class="arrow rise" style="--d:1.2">→</span>
+        <div class="panel rise" style="--d:1.4"><h3>Week 2</h3><p>Favourites first, then new films: Chupke Chupke, Padosan, Deewaar…</p></div>
+      </div>
+      <p class="sub rise" style="--d:1.8">What lit them up returns as a favourite and goes back to Qloo as a new signal. What didn’t land is set aside. The kit gets more personal every week.</p>
+    </section>
+
+    <section class="scene" data-title="Under the hood" data-secs="14">
+      <p class="eyebrow rise">How it’s built</p>
+      <div class="flow">
+        <div class="panel rise" style="--d:.2"><strong>Carer’s phone</strong><span>Profile and journal stay on the device</span></div>
+        <div class="panel rise" style="--d:.4"><strong>AppSync</strong><span>Guest sign-in, no account needed</span></div>
+        <div class="panel rise" style="--d:.6"><strong>SQS queue</strong><span>Agent jobs run in the background</span></div>
+        <div class="panel rise" style="--d:.8"><strong>Agent (Lambda)</strong><span>Plans the Qloo calls and builds the kit</span></div>
+        <div class="panel qloo rise" style="--d:1.0"><strong>Qloo Taste AI</strong><span>Via the qloo harness, cached in DynamoDB</span></div>
+      </div>
+      <p class="back rise" style="--d:1.3">Progress streams back to the phone step by step</p>
+      <p class="sub rise" style="--d:1.5">Serverless on AWS. The Qloo key stays on the server; the person’s name never leaves the phone.</p>
+    </section>
+
+    <section class="scene" data-title="Why Qloo" data-secs="14">
+      <p class="eyebrow rise">Why it needs Qloo, and what’s next</p>
+      <div class="points">
+        <div class="panel rise" style="--d:.2"><h3>Across domains</h3><p>A singer leads to films and food. Only a taste graph connects them.</p></div>
+        <div class="panel rise" style="--d:.4"><h3>Learns without words</h3><p>Reactions become signals for someone who can no longer say what they like.</p></div>
+        <div class="panel rise" style="--d:.6"><h3>Honest evidence</h3><p>Every pick shows its Qloo affinity, framed as a group pattern, never a claim about the person.</p></div>
+      </div>
+      <p class="sub rise" style="--d:1.0"><b style="color:var(--paper)">Next:</b> a voice debrief after each visit, a timeline of the years they grew up in, and a profile the whole family can share.</p>
+    </section>
+
+    <section class="scene" data-title="Try it" data-secs="10">
+      <div class="row rise"><span class="title-mark" aria-hidden="true"></span><p class="eyebrow" style="margin:0">Try it now, no sign-up</p></div>
+      <p class="h rise" style="--d:.2">Pick <em>Baba</em>, <em>Margaret</em> or <em>Abuela Rosa</em> and begin a session.</p>
+      <p class="title-name rise" style="--d:.4;font-size:clamp(22px,4.2cqw,54px)">d32wwoinn0chhg.cloudfront.net</p>
+      <p class="sub rise" style="--d:.6">Reminisce · built for the Qloo Agentic Hackathon</p>
+    </section>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="playBtn" type="button">▶ Play</button>
+    <button class="btn ghost" id="prevBtn" type="button" aria-label="Previous scene">‹</button>
+    <button class="btn ghost" id="nextBtn" type="button" aria-label="Next scene">›</button>
+    <div class="progress" aria-hidden="true"><span id="bar"></span></div>
+    <span class="time" id="time">0:00</span>
+    <label class="toggle"><input type="checkbox" id="narrate"> Narration</label>
+  </div>
+
+  <div class="caption" aria-live="polite"><small id="capTitle">1 · Reminisce</small><p id="caption"></p></div>
+
+  <ol class="chapters" id="chapters"></ol>
+
+  <p class="foot">Live app: <a href="https://d32wwoinn0chhg.cloudfront.net" target="_blank" rel="noreferrer">d32wwoinn0chhg.cloudfront.net</a>. Narration uses your device’s built-in voice. Keyboard: space to play or pause, arrows to move between scenes.</p>
+</div>
+
+<div class="rec-cap" id="recCap"></div>
+<div class="rec-tag">Reminisce · Qloo Agentic Hackathon</div>
+<script>
+const CAPTIONS = [
+  "This is Reminisce, a companion for people caring for someone with dementia. It uses Qloo’s taste graph to rebuild the music, films and food of someone’s youth, and it gets better with every session.",
+  "More than fifty five million people live with dementia. Many can no longer tell you what they like. But songs, films and dishes from their youth can still reach them. The hard part for a carer is knowing what to try.",
+  "The carer shares just a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name stays on the phone. Only the place, the decade and the fragments are sent to Qloo.",
+  "First, the agent finds each fragment in Qloo. Kishore Kumar becomes a singer. Guide, with its year, becomes a 1965 film. Fish curry becomes a dish tag that Qloo uses for restaurants known for it.",
+  "Then Qloo expands those seeds across music, film and food. It asks what people with the same tastes love. The decade sets a release-year window for films, and Qloo’s own era genre, Old Hindi, keeps the music in the right years. Food comes from places near where they grew up.",
+  "The result is a ready-to-use session kit: singers with photos and play links, film clips from their youth, something to cook together, and gentle conversation starters. It takes about half a minute.",
+  "Every suggestion shows its evidence. Tap Why this, and you see the Qloo affinity behind it, with the exact request that was sent. It always describes people with similar tastes, never a claim about the person.",
+  "During the visit, session mode shows one large card at a time. The carer plays the song, watches, and taps one word: lit up, a little, or not today. Here, Baba lit up at Manna Dey.",
+  "This is the loop. What lit them up goes back to Qloo as new signals, and everything already shown is left out. So week two brings new things, shaped by what actually worked. The profile sharpens for someone who can no longer describe their own taste.",
+  "Under the hood it is serverless on AWS. The phone starts a job through AppSync, a queue hands it to the agent, and the agent calls Qloo through the official harness, with results cached. Progress streams back step by step. The key stays on the server.",
+  "Why does it need Qloo? Because only a taste graph connects a singer to films and food, and lets reactions become signals. Next, carers will debrief by voice, see a timeline of the years they grew up in, and share the profile with family.",
+  "Try it now, with no sign-up. Pick Baba, Margaret or Abuela Rosa, and begin a session. Thank you for watching."
+];
+
+const stage = document.getElementById("stage");
+const scenes = [...stage.querySelectorAll(".scene")];
+const bar = document.getElementById("bar");
+const timeEl = document.getElementById("time");
+const playBtn = document.getElementById("playBtn");
+const caption = document.getElementById("caption");
+const capTitle = document.getElementById("capTitle");
+const narrate = document.getElementById("narrate");
+const chapters = document.getElementById("chapters");
+
+const secs = scenes.map((s) => Number(s.dataset.secs));
+const total = secs.reduce((a, b) => a + b, 0);
+const startOf = (i) => secs.slice(0, i).reduce((a, b) => a + b, 0);
+const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+
+let index = 0, elapsed = 0, playing = false, last = 0, speaking = false;
+
+scenes.forEach((s, i) => {
+  const li = document.createElement("li");
+  const b = document.createElement("button");
+  b.className = "chap"; b.type = "button"; b.textContent = `${i + 1}. ${s.dataset.title}`;
+  b.addEventListener("click", () => go(i, true));
+  li.appendChild(b); chapters.appendChild(li);
+});
+
+function show(i) {
+  scenes.forEach((s, j) => s.classList.toggle("on", j === i));
+  // Restart the entrance animations for the scene being entered.
+  const s = scenes[i];
+  s.classList.remove("on"); void s.offsetWidth; s.classList.add("on");
+  caption.textContent = CAPTIONS[i];
+  capTitle.textContent = `${i + 1} · ${s.dataset.title}`;
+  [...chapters.querySelectorAll(".chap")].forEach((c, j) => c.setAttribute("aria-current", String(j === i)));
+}
+
+function speak(i) {
+  if (!narrate.checked || !("speechSynthesis" in window)) { speaking = false; return; }
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(CAPTIONS[i]);
+    const voices = speechSynthesis.getVoices();
+    u.voice = voices.find((v) => /en[-_]IN/i.test(v.lang)) || voices.find((v) => /en[-_]GB/i.test(v.lang)) || voices.find((v) => /^en/i.test(v.lang)) || null;
+    u.rate = 1;
+    speaking = true;
+    u.onend = u.onerror = () => { speaking = false; };
+    speechSynthesis.speak(u);
+  } catch { speaking = false; }
+}
+
+function go(i, fromUser) {
+  index = Math.max(0, Math.min(scenes.length - 1, i));
+  elapsed = startOf(index);
+  show(index);
+  if (playing) speak(index);
+  else if (fromUser) { try { speechSynthesis.cancel(); } catch {} }
+  render();
+}
+
+function render() {
+  bar.style.width = `${(elapsed / total) * 100}%`;
+  timeEl.textContent = `${fmt(elapsed)} / ${fmt(total)}`;
+}
+
+function tick(now) {
+  if (!playing) return;
+  const dt = (now - last) / 1000; last = now;
+  const end = startOf(index) + secs[index];
+  // Hold a scene while its narration is still speaking.
+  if (elapsed + dt < end || speaking) elapsed = Math.min(elapsed + dt, end);
+  else if (index < scenes.length - 1) { index++; elapsed = startOf(index); show(index); speak(index); }
+  else { setPlaying(false); }
+  render();
+  requestAnimationFrame(tick);
+}
+
+function setPlaying(on) {
+  playing = on;
+  stage.classList.toggle("play", on || stage.classList.contains("play"));
+  playBtn.textContent = on ? "❚❚ Pause" : (index === scenes.length - 1 && elapsed >= total - 0.05 ? "↺ Replay" : "▶ Play");
+  if (on) {
+    if (elapsed >= total - 0.05) { index = 0; elapsed = 0; }
+    show(index); speak(index);
+    last = performance.now(); requestAnimationFrame(tick);
+  } else { try { speechSynthesis.cancel(); } catch {} speaking = false; }
+}
+
+playBtn.addEventListener("click", () => setPlaying(!playing));
+document.getElementById("prevBtn").addEventListener("click", () => go(index - 1, true));
+document.getElementById("nextBtn").addEventListener("click", () => go(index + 1, true));
+narrate.addEventListener("change", () => { if (playing) speak(index); else { try { speechSynthesis.cancel(); } catch {} } });
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON" && e.key === " ") return;
+  if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+  if (e.key === "ArrowRight") go(index + 1, true);
+  if (e.key === "ArrowLeft") go(index - 1, true);
+});
+try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch {}
+
+// Record mode: play the listed scenes for the given durations, with captions.
+if (window.__REC) {
+  const { scenes: order, durs, caps } = window.__REC;
+  document.body.classList.add("record");
+  stage.classList.add("play");
+  const cap = document.getElementById("recCap");
+  let k = 0;
+  const next = () => {
+    if (k >= order.length) { window.__DONE = true; return; }
+    show(order[k]); cap.textContent = caps[k];
+    setTimeout(next, durs[k] * 1000); k++;
+  };
+  window.__START = () => next();
+}
+
+caption.textContent = CAPTIONS[0];
+[...chapters.querySelectorAll(".chap")].forEach((c, j) => c.setAttribute("aria-current", String(j === 0)));
+render();
+</script>

@@ -8,7 +8,7 @@ import Session from "./views/Session.jsx";
 
 const EMPTY = { name: "", region: "", era: "", loves: [], learned: [], shown: [] };
 
-const kitIds = (kit) => [...kit.playlist, ...kit.films].map((i) => i.id);
+
 
 export default function App() {
   const [profile, setProfile] = useState(() => loadProfile() ?? EMPTY);
@@ -40,15 +40,20 @@ export default function App() {
     }
   }
 
-  // The weekly loop: what lit them up becomes a Qloo signal for the next kit,
-  // and everything already shown is left out so the next kit brings new things.
+  // The weekly loop: what lit them up becomes a Qloo signal (and a favourite to
+  // return to), what didn't land is left out, and films already shown make way
+  // for new ones. Familiar songs may come back; that's part of reminiscence.
   function finishSession(entry) {
     const next = [entry, ...journal].slice(0, 50);
     setJournal(next);
     saveJournal(next);
     const hits = entry.items.filter((i) => i.reaction === "lit").map((i) => ({ ...i, date: entry.date }));
     const learned = [...hits, ...(profile.learned ?? [])].filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i).slice(0, 8);
-    const shown = [...new Set([...kitIds(kit), ...(profile.shown ?? [])])].slice(0, 40);
+    const setAside = entry.items.filter((i) => i.reaction === "none").map((i) => i.id);
+    const shown = [...new Set([...kit.films.map((f) => f.id), ...setAside, ...(profile.shown ?? [])])].slice(0, 40);
+    const done = { ...kit, logged: true };
+    setKit(done);
+    saveKit(done);
     const updated = { ...profile, learned, shown };
     setProfile(updated);
     saveProfile(updated);
@@ -68,7 +73,15 @@ export default function App() {
   }
 
   if (view === "session" && kit) {
-    return <Session kit={kit} name={profile.name} onClose={() => setView("kit")} onFinish={finishSession} />;
+    return (
+      <Session
+        kit={kit}
+        name={profile.name}
+        favourites={kit.logged ? [] : (profile.learned ?? [])}
+        onClose={() => setView("kit")}
+        onFinish={finishSession}
+      />
+    );
   }
 
   return (

@@ -10,8 +10,8 @@ const REACTIONS = [
 const KIND_LABEL = { music: "Song", film: "Film", place: "Food", food: "Food" };
 
 // One calm card at a time, large enough to share the screen with the person.
-export default function Session({ kit, name, onClose, onFinish }) {
-  const cards = useMemo(() => buildCards(kit), [kit]);
+export default function Session({ kit, name, favourites, onClose, onFinish }) {
+  const cards = useMemo(() => buildCards(kit, favourites), [kit, favourites]);
   const [index, setIndex] = useState(0);
   const [reactions, setReactions] = useState({});
   const [note, setNote] = useState("");
@@ -35,7 +35,7 @@ export default function Session({ kit, name, onClose, onFinish }) {
     // Keep the Qloo ids of songs and films so the next kit can build on them.
     const items = cards
       .filter((c) => c.kind !== "food")
-      .map((c) => ({ id: c.item.id, name: c.item.name, type: c.item.type, reaction: reactions[c.key] ?? null }));
+      .map((c) => ({ id: c.item.id, name: c.item.name, type: c.item.type, image: c.item.image, reaction: reactions[c.key] ?? null }));
     onFinish({ date: new Date().toISOString(), sparked: pick("lit"), some: pick("some"), quiet: pick("none"), note: note.trim(), items });
   }
 
@@ -97,7 +97,7 @@ function SessionCard({ card, reaction, onReact, onBack, onNext }) {
   return (
     <section className="session-card" key={card.key}>
       <Photo item={card.item} large />
-      <p className="eyebrow">{KIND_LABEL[card.kind] ?? ""}</p>
+      <p className="eyebrow">{card.favourite ? "A favourite" : (KIND_LABEL[card.kind] ?? "")}</p>
       <h1>{card.title}</h1>
       {card.item?.description && <p className="session-desc">{card.item.description}</p>}
       <p className="session-prompt">{card.prompt}</p>
@@ -125,9 +125,20 @@ function SessionCard({ card, reaction, onReact, onBack, onNext }) {
   );
 }
 
-function buildCards(kit) {
+function buildCards(kit, favourites = []) {
   const cards = [];
-  for (const item of kit.playlist.slice(0, 4)) {
+  // Familiar favourites are worth returning to: open with the ones that lit them up.
+  for (const item of favourites.slice(0, 2)) {
+    cards.push({
+      key: `fav-${item.id}`,
+      kind: item.type?.endsWith("movie") ? "film" : "music",
+      title: item.name,
+      item,
+      favourite: true,
+      prompt: "A favourite from last time. Play it again and see if it still sparks.",
+    });
+  }
+  for (const item of kit.playlist.slice(0, favourites.length ? 3 : 4)) {
     cards.push({
       key: item.id,
       kind: "music",

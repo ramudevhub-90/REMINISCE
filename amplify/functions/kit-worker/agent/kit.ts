@@ -110,13 +110,15 @@ export async function buildKit({ region, era, loves, learned = [], avoid = [] }:
     return res.entities.map((ent) => toItem(ent, seedNames, learnedNames, res));
   };
   const none = Promise.resolve([] as KitItem[]);
-  // Era-filtered singers first; top up from the wider list if the era genre is thin.
+  // Era-genre singers first. Qloo's era genres can be small, so top up from
+  // the wider list only as far as six, keeping later decades from crowding in.
   const expandMusic = async () => {
     const base = { signalEntities: mediaIds, signalTags: genreTags, exclude };
-    const picks = eraTags.length ? await expand("artist", 8, { ...base, filterTags: eraTags.map((t) => t.id) }) : [];
-    if (picks.length >= 5) return picks;
+    if (!eraTags.length) return expand("artist", 8, base);
+    const picks = await expand("artist", 8, { ...base, filterTags: eraTags.map((t) => t.id) });
+    if (picks.length >= 6) return picks;
     const wider = await expand("artist", 8, base);
-    return [...picks, ...wider.filter((w) => !picks.some((p) => p.id === w.id))].slice(0, 8);
+    return [...picks, ...wider.filter((w) => !picks.some((p) => p.id === w.id))].slice(0, Math.max(6, picks.length));
   };
   const [music, films, places] = await Promise.all([
     mediaIds.length ? expandMusic() : none,

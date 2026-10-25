@@ -5,7 +5,8 @@ export default function Kit({ kit, profile, journal, onBegin, onNext }) {
   const [why, setWhy] = useState(null);
   const name = profile.name || "your person";
   // Once a session on this kit is logged, the next step is a new kit.
-  const logged = kit.playlist.some((i) => profile.shown?.includes(i.id));
+  const logged = Boolean(kit.logged);
+  const favourites = logged ? [] : (profile.learned ?? []);
   const sessionNo = journal.length + (logged ? 0 : 1);
 
   return (
@@ -53,6 +54,14 @@ export default function Kit({ kit, profile, journal, onBegin, onNext }) {
         )}
       </section>
 
+      {favourites.length > 0 && (
+        <Shelf
+          title="Favourites to return to"
+          hint="These lit them up last time. Familiar songs are worth playing again."
+          items={favourites.map((f) => ({ ...f, tags: [], why: favouriteWhy(f, name) }))}
+          onWhy={setWhy}
+        />
+      )}
       {kit.playlist.length > 0 && (
         <Shelf title="Music" hint="Start here. Familiar songs often reach furthest." items={kit.playlist} onWhy={setWhy} />
       )}
@@ -146,6 +155,12 @@ function Shelf({ title, hint, items, onWhy, poster }) {
   );
 }
 
+const favouriteWhy = (f, name) => ({
+  statement: `${name} lit up at ${f.name} in a session${f.date ? ` on ${new Date(f.date).toLocaleDateString(undefined, { day: "numeric", month: "long" })}` : ""}. It is now one of the signals Reminisce sends to Qloo.`,
+  request: "From your journal on this device",
+  source: "journal",
+});
+
 const andList = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 export function Photo({ item, large }) {
@@ -195,13 +210,16 @@ function WhySheet({ item, name, onClose }) {
           </div>
         )}
         <p className="muted small">
-          This describes a group of people with similar tastes, not {name} personally. Source:{" "}
-          {item.why.source === "live" ? "Qloo Taste AI (live)" : "sample data"}.
+          {item.why.source === "journal"
+            ? "This comes from what you noted during a session. It stays on this device."
+            : `This describes a group of people with similar tastes, not ${name} personally. Source: ${item.why.source === "live" ? "Qloo Taste AI (live)" : "sample data"}.`}
         </p>
-        <details>
-          <summary>The request we sent</summary>
-          <code>{item.why.request}</code>
-        </details>
+        {item.why.source !== "journal" && (
+          <details>
+            <summary>The request we sent</summary>
+            <code>{item.why.request}</code>
+          </details>
+        )}
         <button className="secondary" onClick={onClose}>
           Close
         </button>
