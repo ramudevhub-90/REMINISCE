@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&family=Inter:wght@500;600;700&family=Noto+Sans+Devanagari:wght@600;700&family=Noto+Serif+Devanagari:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  /* 1280x720 YouTube thumbnail, rendered by thumbnail.mjs. ?lang=hi for the Hindi version. */
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 78% 50%, #3a2a1c 0%, #1a1510 55%, #110d09 100%);
+    color: #f6eee2; font-family: Inter, "Noto Sans Devanagari", sans-serif; position: relative;
+  }
+  .record {
+    position: absolute; right: -120px; top: 50%; width: 640px; height: 640px; transform: translateY(-50%);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, #e08a5f 0 58px, #f6eee2 58px 64px, transparent 64px 100%),
+      repeating-radial-gradient(circle, #2a2119 0 2px, #17120e 2px 6px);
+    background-blend-mode: normal, normal;
+    box-shadow: 0 30px 80px rgb(0 0 0 / .6), inset 0 0 0 2px #3a2f24;
+  }
+  .record::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 210deg, transparent 0 20%, rgb(255 230 190 / .10) 25%, transparent 32% 70%, rgb(255 230 190 / .06) 75%, transparent 82%); }
+  .label { position: absolute; right: 172px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; margin-right: 17px; border-radius: 50%; background: #110d09; }
+  .content { position: absolute; left: 72px; top: 50%; transform: translateY(-50%); width: 720px; display: grid; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 14px; font: 600 30px Fraunces, serif; }
+  .dot { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #d4b06a, #e08a5f 70%); }
+  h1 { font: 500 92px/1.0 Fraunces, serif; letter-spacing: -0.02em; }
+  h1 em { color: #e8935f; font-style: italic; }
+  .hi h1 { font: 700 84px/1.18 "Noto Serif Devanagari", serif; letter-spacing: 0; }
+  .sub { font: 600 30px/1.35 Inter, sans-serif; color: #d9cbb8; max-width: 640px; }
+  .tags { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  .tag { font: 700 20px Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; padding: 10px 18px; border-radius: 999px; }
+  .tag.gold { background: #d4b06a; color: #1a120c; }
+  .tag.line { border: 2px solid #5a4a3a; color: #f6eee2; }
+  .lang { position: absolute; right: 36px; top: 32px; font: 700 22px Inter, sans-serif; background: #f6eee2; color: #1a120c; padding: 8px 16px; border-radius: 10px; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+  <div class="record"></div><div class="label"></div>
+  <div class="content" id="c">
+    <div class="brand"><span class="dot"></span>Reminisce</div>
+    <h1 id="h"></h1>
+    <p class="sub" id="s"></p>
+    <div class="tags"><span class="tag gold">Dementia care</span><span class="tag line">Qloo taste AI</span></div>
+  </div>
+  <div class="lang" id="l" hidden></div>
+<script>
+  const hi = new URLSearchParams(location.search).get("lang") === "hi";
+  document.getElementById("h").innerHTML = hi ? "वो गाने जो<br>यादें लौटा दें" : "The songs that<br><em>bring them back</em>";
+  document.getElementById("s").textContent = hi
+    ? "An AI companion for dementia carers, in Hindi with English subtitles"
+    : "An AI companion that finds the music, films and food of their youth";
+  if (hi) {
+    document.getElementById("c").classList.add("hi");
+    const l = document.getElementById("l"); l.hidden = false; l.textContent = "हिंदी · EN subtitles";
+  }
+</script>
+</body>
+</html>
