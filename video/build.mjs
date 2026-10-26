@@ -18,7 +18,7 @@ const englishFor = (part, line, i) => (part === "demo" ? EN.DEMO.find((l) => l.i
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "out");
 const TMP = path.join(OUT, "tmp");
-const APP = process.env.APP ?? "https://d32wwoinn0chhg.cloudfront.net/";
+const APP = process.env.APP ?? "https://reminisce.revenuerush.in/";
 const SIZE = { width: 1920, height: 1080 };
 const PAD = 0.9; // seconds of quiet after each line
 mkdirSync(TMP, { recursive: true });
@@ -134,7 +134,7 @@ const OVERLAY = `
       .session-prompt { font-size: 18px !important; }\`;
     document.head.appendChild(s);
     const c = document.createElement("div"); c.id = "vcap"; document.body.appendChild(c);
-    const t = document.createElement("div"); t.id = "vtag"; t.textContent = "Live app · d32wwoinn0chhg.cloudfront.net";
+    const t = document.createElement("div"); t.id = "vtag"; t.textContent = "Live app · reminisce.revenuerush.in";
     document.body.appendChild(t);
   })();`;
 
@@ -264,6 +264,13 @@ const ACTIONS = {
     await page.locator(".kit-hero").waitFor({ timeout: 240_000 });
     await sleep(1500);
     await scrollTo(page, ".shelf");
+  },
+  // Show the optional sign-in screen (nothing is typed or sent).
+  async accounts(page) {
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
+    await sleep(800);
+    await press(page, "button.account-button");
+    await page.locator(".auth-page").waitFor();
   },
 };
 

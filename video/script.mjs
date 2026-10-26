@@ -18,7 +18,7 @@ export const INTRO = [
   },
   {
     scene: 2,
-    text: "So a carer starts with a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name stays in their browser. Only the place, the decade and those fragments go to Qloo.",
+    text: "So a carer starts with a few fragments: what they call the person, where they grew up, roughly when, and a handful of things they have always loved. The name is never sent to Qloo. Only the place, the decade and those fragments go to Qloo.",
   },
   {
     scene: 3,
@@ -32,7 +32,7 @@ export const INTRO = [
 
 // Each beat runs an action in the live app, then holds while its line is read.
 export const DEMO = [
-  { id: "home", text: "Here is the live web app. It runs in any browser, on a phone, tablet or laptop, with no install and no sign-up. Anyone can try one of three ready-made people. Let’s pick Baba, who grew up in Kolkata in the 1960s." },
+  { id: "home", text: "Here is the live web app. It runs in any browser, on a phone, tablet or laptop, and anyone can try it as a guest, with no sign-up. There are three ready-made people. Let’s pick Baba, who grew up in Kolkata in the 1960s." },
   { id: "building", text: "The agent works in the background and streams each step to the screen as it goes." },
   { id: "kit", text: "Moments later, there is a session kit for Baba." },
   { id: "music", text: "Classic singers of his era, each with a photo and a way to play them." },
@@ -48,6 +48,7 @@ export const DEMO = [
   { id: "years", text: "Each window holds the films of those years that suit his tastes, with a gentle question to ask about them." },
   { id: "group", text: "Care homes can run group sessions too. Add the residents joining today, or try our Sunrise Care Home." },
   { id: "groupKit", text: "Reminisce expands each resident’s tastes through Qloo, then ranks what reaches the most of them. Here, Lata Mangeshkar and Kishore Kumar reach everyone in the room." },
+  { id: "accounts", text: "Everything so far works as a guest. Signing in is optional, for carers who want to keep what they learn. They enter their email and a six-digit code, with no password. Each person’s journal and favourites then follow them to any device, and care homes get a residents list they can import in one go." },
 ];
 
 export const OUTRO = [
@@ -65,6 +66,6 @@ export const OUTRO = [
   },
   {
     scene: 11,
-    text: "Try it now at the link on screen. Pick Baba, Margaret or Abuela Rosa, or plan a group session at Sunrise Care Home. Thank you for watching.",
+    text: "Try it now at the link on screen, as a guest or with your email. Pick Baba, Margaret or Abuela Rosa, or plan a group session at Sunrise Care Home. Thank you for watching.",
   },
 ];
