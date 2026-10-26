@@ -63,7 +63,7 @@ a { color: var(--sage); }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
 
-.app { max-width: 920px; margin: 0 auto; padding: 0 20px 40px; }
+.app { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 3vw, 40px) 40px; }
 
 /* Masthead */
 .masthead {
