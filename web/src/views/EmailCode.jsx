@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { autoSignIn, confirmSignIn, confirmSignUp, resendSignUpCode, signIn, signUp } from "aws-amplify/auth";
+import { confirmSignIn, signIn, signUp } from "aws-amplify/auth";
 
-const OTP = { authFlowType: "USER_AUTH", preferredChallenge: "EMAIL_OTP" };
+const CUSTOM = { authFlowType: "CUSTOM_WITHOUT_SRP" };
 
-// One flow for everyone: email, then a 6-digit code. A new email creates the
-// account and gets a verification code; a returning carer gets a sign-in code.
-// Either way, entering the code signs them in (the app listens for that).
+// One flow for everyone: email, then a 6-digit code we email (Cognito custom
+// auth). A new email is signed up first (auto-confirmed; the code proves the
+// address), then both new and returning carers get the same sign-in code.
 export default function EmailCode() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState("email"); // email | signin-code | signup-code
+  const [step, setStep] = useState("email"); // email | code
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,40 +30,27 @@ export default function EmailCode() {
     const username = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(username)) return setError("Please enter a valid email address.");
     run(async () => {
-      // Try to create the account first: Cognito hides whether an email is
-      // registered on sign-in, so a new email would get a silent fake challenge.
       try {
-        await signUp({ username, options: { userAttributes: { email: username }, autoSignIn: OTP } });
-        setStep("signup-code");
+        // Accounts are passwordless; Cognito still wants one, so it gets a long random one nobody uses.
+        await signUp({ username, password: randomPassword(), options: { userAttributes: { email: username } } });
       } catch (err) {
         if (err.name !== "UsernameExistsException") throw err;
-        try {
-          const { nextStep } = await signIn({ username, options: OTP });
-          if (nextStep.signInStep !== "CONFIRM_SIGN_IN_WITH_EMAIL_CODE") throw new Error(`Unexpected step: ${nextStep.signInStep}`);
-          setStep("signin-code");
-        } catch (signInErr) {
-          // Started signing up before but never entered the code: send it again.
-          if (signInErr.name !== "UserNotConfirmedException") throw signInErr;
-          await resendSignUpCode({ username });
-          setStep("signup-code");
-        }
       }
+      const { nextStep } = await signIn({ username, options: CUSTOM });
+      if (nextStep.signInStep !== "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE") throw new Error(`Unexpected step: ${nextStep.signInStep}`);
+      setStep("code");
       setCode("");
     });
   };
 
   const verify = (e) => {
     e.preventDefault();
-    const confirmationCode = code.replace(/\D/g, "");
-    // Sign-up codes have 6 digits, sign-in codes 8.
-    if (confirmationCode.length < 6 || confirmationCode.length > 8) return setError("Enter the code from the email (6 or 8 digits).");
+    const answer = code.replace(/\D/g, "");
+    if (answer.length !== 6) return setError("The code has 6 digits.");
     run(async () => {
-      if (step === "signin-code") {
-        await confirmSignIn({ challengeResponse: confirmationCode });
-      } else {
-        await confirmSignUp({ username: email.trim().toLowerCase(), confirmationCode });
-        await autoSignIn();
-      }
+      const { nextStep } = await confirmSignIn({ challengeResponse: answer });
+      // Wrong code: Cognito asks again (same code, up to three tries).
+      if (nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE") throw Object.assign(new Error(), { name: "CodeMismatchException" });
     });
   };
 
@@ -85,7 +72,7 @@ export default function EmailCode() {
         <button className="primary" disabled={busy || !email.trim()}>
           {busy ? "Sending…" : "Email me a code"}
         </button>
-        <p className="muted small">No password. We’ll email you a short code.</p>
+        <p className="muted small">No password. We’ll email you a 6-digit code.</p>
       </form>
     );
   }
@@ -94,24 +81,23 @@ export default function EmailCode() {
     <form className="paper form email-code" onSubmit={verify}>
       <h2 className="section-label">Check your email</h2>
       <p className="muted">
-        We sent a code to <strong>{email.trim()}</strong>
-        {step === "signup-code" ? " to set up your account." : "."}
+        We sent a 6-digit code to <strong>{email.trim()}</strong>. It works for 3 minutes.
       </p>
       <label className="field">
-        <span>Code from the email</span>
+        <span>6-digit code</span>
         <input
           className="code-input"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={10}
+          maxLength={7}
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="12345678"
+          placeholder="123456"
           autoFocus
         />
       </label>
       {error && <p className="error">{error}</p>}
-      <button className="primary" disabled={busy || code.replace(/\D/g, "").length < 6}>
+      <button className="primary" disabled={busy || code.replace(/\D/g, "").length !== 6}>
         {busy ? "Checking…" : "Continue"}
       </button>
       <div className="email-code-links">
@@ -126,17 +112,22 @@ export default function EmailCode() {
   );
 }
 
+// Meets Cognito's default policy (upper, lower, digit, symbol); never shown or reused.
+function randomPassword() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const body = Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
+  return `Aa1!${body}`;
+}
+
 function friendly(err) {
   switch (err?.name) {
     case "CodeMismatchException":
       return "That code didn’t match. Check the email and try again.";
-    case "ExpiredCodeException":
-      return "That code has expired. Send a new one.";
+    case "NotAuthorizedException":
+      return "Too many tries or the code expired. Send a new code.";
     case "LimitExceededException":
     case "TooManyRequestsException":
       return "Too many tries. Please wait a few minutes and try again.";
-    case "NotAuthorizedException":
-      return "That code didn’t work. Send a new one and try again.";
     default:
       return err?.message || "Something went wrong. Please try again.";
   }

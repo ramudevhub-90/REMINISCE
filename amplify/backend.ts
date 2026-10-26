@@ -9,8 +9,9 @@ import { auth } from "./auth/resource";
 import { data } from "./data/resource";
 import { kitWorker } from "./functions/kit-worker/resource";
 import { kitApi } from "./functions/kit-api/resource";
+import { createChallenge } from "./auth/create-challenge/resource";
 
-const backend = defineBackend({ auth, data, kitApi, kitWorker });
+const backend = defineBackend({ auth, data, kitApi, kitWorker, createChallenge });
 
 const stack = backend.data.stack;
 const apiFn = backend.kitApi.resources.lambda as LambdaFunction;
@@ -60,3 +61,20 @@ workerFn.addToRolePolicy(
     resources: [`arn:aws:ssm:${Stack.of(stack).region}:${Stack.of(stack).account}:parameter${QLOO_KEY_PARAM}`],
   }),
 );
+
+// Sign-in codes: emailed from REMINISCE_FROM_ADDRESS. With REMINISCE_SES_ROLE_ARN
+// set, the Lambda assumes that send-only role in an account whose SES has
+// production access; otherwise it sends with this account's SES (in the
+// sandbox, only to verified addresses). Both are deploy-time settings so no
+// account details live in the repo.
+const challengeFn = backend.createChallenge.resources.lambda as LambdaFunction;
+const sesRoleArn = process.env.REMINISCE_SES_ROLE_ARN ?? "";
+challengeFn.addEnvironment("FROM_ADDRESS", process.env.REMINISCE_FROM_ADDRESS ?? "");
+challengeFn.addEnvironment("SES_REGION", process.env.REMINISCE_SES_REGION ?? "us-east-1");
+if (sesRoleArn) {
+  challengeFn.addEnvironment("SES_ROLE_ARN", sesRoleArn);
+  challengeFn.addToRolePolicy(new PolicyStatement({ actions: ["sts:AssumeRole"], resources: [sesRoleArn] }));
+} else {
+  challengeFn.addToRolePolicy(new PolicyStatement({ actions: ["ses:SendEmail", "ses:SendRawEmail"], resources: ["*"] }));
+}
+
