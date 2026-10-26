@@ -410,8 +410,9 @@ button.kind-card:hover { border-color: var(--gold); }
 .kind-card > span { color: var(--ink-soft); }
 .plans { margin-bottom: 40px; }
 .plan-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.plan { display: grid; gap: 10px; align-content: start; justify-items: start; padding: 22px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
-.plan.featured { border-color: var(--gold); }
+.plan { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 22px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); }
+.plan > button { margin-top: auto; }
+.plan ul { margin-bottom: 8px !important; }
 .plan h3 { font: 500 26px var(--serif); margin: 0; }
 .plan .eyebrow { margin: 0; }
 .plan ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-soft); font-size: 15px; }

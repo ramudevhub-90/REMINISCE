@@ -99,12 +99,12 @@ export default function Home({ initial, onSubmit, onGroup, onAccount, signedIn }
               <li>Use as a guest, or sign in to keep it on every device</li>
             </ul>
             {!signedIn && (
-              <button className="secondary" onClick={onAccount}>
+              <button className="primary" onClick={onAccount}>
                 Create a free account
               </button>
             )}
           </div>
-          <div className="plan featured">
+          <div className="plan">
             <p className="eyebrow">For care homes</p>
             <h3>Care home package</h3>
             <ul>
