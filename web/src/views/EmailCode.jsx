@@ -55,7 +55,8 @@ export default function EmailCode() {
   const verify = (e) => {
     e.preventDefault();
     const confirmationCode = code.replace(/\D/g, "");
-    if (confirmationCode.length !== 6) return setError("The code has 6 digits.");
+    // Sign-up codes have 6 digits, sign-in codes 8.
+    if (confirmationCode.length < 6 || confirmationCode.length > 8) return setError("Enter the code from the email (6 or 8 digits).");
     run(async () => {
       if (step === "signin-code") {
         await confirmSignIn({ challengeResponse: confirmationCode });
@@ -84,7 +85,7 @@ export default function EmailCode() {
         <button className="primary" disabled={busy || !email.trim()}>
           {busy ? "Sending…" : "Email me a code"}
         </button>
-        <p className="muted small">No password. We’ll email you a 6-digit code.</p>
+        <p className="muted small">No password. We’ll email you a short code.</p>
       </form>
     );
   }
@@ -93,24 +94,24 @@ export default function EmailCode() {
     <form className="paper form email-code" onSubmit={verify}>
       <h2 className="section-label">Check your email</h2>
       <p className="muted">
-        We sent a 6-digit code to <strong>{email.trim()}</strong>
+        We sent a code to <strong>{email.trim()}</strong>
         {step === "signup-code" ? " to set up your account." : "."}
       </p>
       <label className="field">
-        <span>6-digit code</span>
+        <span>Code from the email</span>
         <input
           className="code-input"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={7}
+          maxLength={10}
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="123456"
+          placeholder="12345678"
           autoFocus
         />
       </label>
       {error && <p className="error">{error}</p>}
-      <button className="primary" disabled={busy || code.replace(/\D/g, "").length !== 6}>
+      <button className="primary" disabled={busy || code.replace(/\D/g, "").length < 6}>
         {busy ? "Checking…" : "Continue"}
       </button>
       <div className="email-code-links">
