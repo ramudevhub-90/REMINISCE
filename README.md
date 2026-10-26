@@ -63,6 +63,15 @@ Then set `QLOO_MODE` to `live` in [`amplify/functions/kit-worker/resource.ts`](a
 
 Local UI development against the deployed backend: `npm run dev`. Tests: `npm test`.
 
+Deploy-time settings live in an untracked `.deploy.env`, loaded by both deploy scripts:
+
+```bash
+export REMINISCE_FROM_ADDRESS=no-reply@example.com   # SES-verified sender for sign-in codes
+export REMINISCE_SES_ROLE_ARN=...                    # optional: send via a role in an account with production SES
+export REMINISCE_DOMAIN=reminisce.example.com        # optional custom domain (DNS elsewhere)
+export REMINISCE_CERT_ARN=arn:aws:acm:us-east-1:...  # its issued ACM certificate
+```
+
 ## Licence
 
 [MIT](LICENSE)

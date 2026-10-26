@@ -12,8 +12,8 @@
     "dev": "vite --config web/vite.config.js",
     "build": "vite build --config web/vite.config.js",
     "layer": "npm install --prefix amplify/layers/qloo-harness/nodejs --omit=dev --no-audit --no-fund",
-    "deploy:backend": "npm run layer && AWS_REGION=us-east-1 ampx deploy --identifier demo --backend --outputs-out-dir web/src --profile default -y",
-    "deploy:frontend": "AWS_REGION=us-east-1 ampx deploy --identifier demo --frontend --profile default -y",
+    "deploy:backend": "npm run layer && sh -c '[ -f .deploy.env ] && . ./.deploy.env; AWS_REGION=us-east-1 ampx deploy --identifier demo --backend --outputs-out-dir web/src --profile default -y'",
+    "deploy:frontend": "sh -c '[ -f .deploy.env ] && . ./.deploy.env; AWS_REGION=us-east-1 ampx deploy --identifier demo --frontend --profile default -y'",
     "test": "node --import tsx --test \"amplify/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p amplify"
   },
