@@ -11,6 +11,9 @@ import { fileURLToPath } from "node:url";
 const LANG = process.env.VLANG === "hi" ? "hi" : "en";
 const { DEMO, INTRO, OUTRO, VOICE } = await import(LANG === "hi" ? "./script.hi.mjs" : "./script.mjs");
 const SUFFIX = LANG === "en" ? "" : `-${LANG}`;
+// On-screen captions are always English, so the Hindi version reads for everyone.
+const EN = await import("./script.mjs");
+const englishFor = (part, line, i) => (part === "demo" ? EN.DEMO.find((l) => l.id === line.id) : EN[part.toUpperCase()][i])?.text ?? line.text;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "out");
@@ -62,9 +65,9 @@ function voice(baseKey, text) {
 }
 
 const lines = () => ({
-  intro: INTRO.map((l, i) => ({ ...l, ...voice(`intro-${i}`, l.text) })),
-  demo: DEMO.map((l) => ({ ...l, ...voice(`demo-${l.id}`, l.text) })),
-  outro: OUTRO.map((l, i) => ({ ...l, ...voice(`outro-${i}`, l.text) })),
+  intro: INTRO.map((l, i) => ({ ...l, ...voice(`intro-${i}`, l.text), caption: englishFor("intro", l, i) })),
+  demo: DEMO.map((l, i) => ({ ...l, ...voice(`demo-${l.id}`, l.text), caption: englishFor("demo", l, i) })),
+  outro: OUTRO.map((l, i) => ({ ...l, ...voice(`outro-${i}`, l.text), caption: englishFor("outro", l, i) })),
 });
 
 // ---- Recording helpers -------------------------------------------------
@@ -92,7 +95,7 @@ async function recordScenes(browser, name, items) {
   await rec.page.addInitScript((r) => (window.__REC = r), {
     scenes: items.map((l) => l.scene),
     durs: items.map((l) => l.dur + PAD),
-    caps: items.map((l) => l.text),
+    caps: items.map((l) => l.caption),
   });
   await rec.page.goto(`file://${path.join(HERE, "explainer.html")}`);
   await rec.page.evaluate(() => document.fonts.ready);
@@ -291,7 +294,7 @@ async function recordDemo(browser, items) {
   const cues = [];
   for (const l of items) {
     const at = rec.now() - start;
-    await page.evaluate((text) => (document.getElementById("vcap").textContent = text), l.text);
+    await page.evaluate((text) => (document.getElementById("vcap").textContent = text), l.caption);
     const t0 = Date.now();
     try {
       await ACTIONS[l.id](page);
@@ -356,13 +359,17 @@ function assemble(parts) {
   ]);
   let offset = 0;
   const srt = [];
+  const spoken = [];
   for (const p of parts) {
     for (const c of p.cues) {
-      srt.push(`${srt.length + 1}\n${srtTime(offset + c.at)} --> ${srtTime(offset + c.at + c.dur)}\n${c.text}\n`);
+      srt.push(`${srt.length + 1}\n${srtTime(offset + c.at)} --> ${srtTime(offset + c.at + c.dur)}\n${c.caption ?? c.text}\n`);
+      spoken.push(`${spoken.length + 1}\n${srtTime(offset + c.at)} --> ${srtTime(offset + c.at + c.dur)}\n${c.text}\n`);
     }
     offset += p.length;
   }
   writeFileSync(path.join(OUT, `reminisce-demo${SUFFIX}.srt`), srt.join("\n"));
+  // For the Hindi version, also keep subtitles in the spoken language.
+  if (LANG !== "en") writeFileSync(path.join(OUT, `reminisce-demo${SUFFIX}.${LANG}.srt`), spoken.join("\n"));
   return { out, total };
 }
 
