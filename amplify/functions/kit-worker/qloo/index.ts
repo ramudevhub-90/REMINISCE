@@ -41,10 +41,12 @@ const db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions
 const memory = new Map<string, QlooResult>();
 let apiKey: Promise<string> | undefined;
 
+// message is safe to show a carer; detail (the raw failure) only goes to logs.
 export class QlooError extends Error {
   constructor(
     public code: string,
     message: string,
+    public detail = "",
   ) {
     super(message);
   }
@@ -82,7 +84,7 @@ export async function insights(opts: {
     // Small towns may not be in Qloo's location index; that's a 400. Retry
     // without the location rather than failing the whole kit.
     const hasLocation = Boolean(opts.location || opts.filterLocation);
-    if (!hasLocation || !(err instanceof QlooError) || !/400/.test(err.message)) throw err;
+    if (!hasLocation || !(err instanceof QlooError) || !/400/.test(err.detail)) throw err;
     const res = await runInsights({ ...opts, location: undefined, filterLocation: undefined });
     return { ...res, locationDropped: true };
   }
@@ -100,7 +102,8 @@ async function runInsights(opts: Parameters<typeof insights>[0]) {
   if (ageGroup) params["signal.demographics.age"] = ageGroup;
   if (releaseYears?.min) params["filter.release_year.min"] = releaseYears.min;
   if (releaseYears?.max) params["filter.release_year.max"] = releaseYears.max;
-  if (exclude.length) params["filter.exclude.entities"] = exclude.join(",");
+  // Keep requests small: the most recent exclusions are the ones that matter.
+  if (exclude.length) params["filter.exclude.entities"] = exclude.slice(0, 20).join(",");
   if (Object.keys(params).length) args.push("--params", JSON.stringify(params));
   return cached(args, () => sampleInsights(type, [...signalEntities, ...exclude], take));
 }
@@ -155,7 +158,7 @@ async function cached(args: string[], sample: () => Pick<QlooResult, "entities" 
   const key = `${MODE}:${args.join("\u0000")}`;
   const hit = memory.get(key) ?? (await readCache(key));
   if (hit) return { ...hit, cached: true };
-  const data = MODE === "live" ? await limited(() => runCli(args)) : sample();
+  const data = MODE === "live" ? await limited(() => withRetry(() => runCli(args))) : sample();
   const result: QlooResult = { ...data, source: MODE, request: describe(args) };
   memory.set(key, result);
   await writeCache(key, result);
@@ -185,6 +188,18 @@ function loadKey() {
   return apiKey;
 }
 
+// One retry for slow or flaky responses; a bad request (4xx) won't improve on retry.
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!(err instanceof QlooError) || err.code === "QLOO_KEY_MISSING" || /\b4\d\d\b/.test(err.detail)) throw err;
+    console.warn("Qloo call failed, retrying once:", err.code, err.detail.slice(0, 300));
+    await new Promise((r) => setTimeout(r, 1500));
+    return fn();
+  }
+}
+
 async function runCli(args: string[]): Promise<Pick<QlooResult, "entities" | "tags">> {
   const key = await loadKey();
   if (!key) throw new QlooError("QLOO_KEY_MISSING", "Qloo is in live mode but no API key is configured.");
@@ -192,16 +207,25 @@ async function runCli(args: string[]): Promise<Pick<QlooResult, "entities" | "ta
     execFile(
       process.execPath,
       [QLOO_BIN, "api", ...args, "--json", "--quiet"],
-      { timeout: 20_000, env: { ...process.env, QLOO_API_KEY: key }, maxBuffer: 8 * 1024 * 1024 },
-      (err, stdout) => {
-        let body: any;
+      { timeout: 30_000, env: { ...process.env, QLOO_API_KEY: key }, maxBuffer: 8 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        let body: any = {};
         try {
           body = JSON.parse(stdout || "{}");
         } catch {
-          return reject(new QlooError("QLOO_BAD_RESPONSE", "Qloo returned output that wasn't JSON."));
+          body = { error: true, message: "not JSON" };
         }
         if (body.error || err) {
-          return reject(new QlooError(body.code || "QLOO_FAILED", body.message || err?.message || "Qloo request failed."));
+          const timedOut = Boolean((err as { killed?: boolean } | null)?.killed);
+          const detail = [body.code, body.message, stderr?.slice(0, 300), err?.message?.slice(0, 200)].filter(Boolean).join(" | ");
+          console.error("Qloo call failed:", detail);
+          return reject(
+            new QlooError(
+              timedOut ? "QLOO_TIMEOUT" : body.code || "QLOO_FAILED",
+              timedOut ? "Qloo took too long to answer." : "Qloo couldn’t answer that request.",
+              detail,
+            ),
+          );
         }
         resolve(normalize(body));
       },

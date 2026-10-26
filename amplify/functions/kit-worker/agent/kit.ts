@@ -64,8 +64,17 @@ export async function buildKit(
   }
 
   const sparked = learnedNames.length ? `, and ${list(learnedNames)}, who lit them up in past sessions,` : "";
+  const LABEL: Record<string, string> = { artist: "songs", movie: "films", place: "places" };
   const expand = async (type: string, take: number, opts: Partial<Parameters<typeof qloo.insights>[0]>) => {
-    const res = await qloo.insights({ type, take, ...opts });
+    // One category failing shouldn't cost the whole kit: note it and carry on.
+    let res;
+    try {
+      res = await qloo.insights({ type, take, ...opts });
+    } catch (err) {
+      console.error(`Skipping ${type}s:`, err instanceof qloo.QlooError ? err.detail : err);
+      await step({ label: `Couldn’t reach Qloo for ${LABEL[type] ?? type} this time` });
+      return [] as KitItem[];
+    }
     const note = res.locationDropped ? ` (Qloo doesn't know “${region}”, so without location)` : "";
     await step({ label: `Expanded seeds into ${type}s${note}`, request: res.request, count: res.entities.length });
     // Places only make sense near where they grew up.

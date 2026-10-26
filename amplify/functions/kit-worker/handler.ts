@@ -56,7 +56,9 @@ async function run(jobId: string, input: JobInput) {
     await publish("done", "Session kit ready", kit);
   } catch (err) {
     console.error("kit job failed", jobId, err);
-    const message = err instanceof Error ? err.message : "Something went wrong.";
+    // Show carers a plain sentence; details stay in the logs.
+    const message =
+      err instanceof Error && err.name !== "Error" ? "Something went wrong. Please try again." : err instanceof Error ? err.message : "Something went wrong.";
     await save(jobId, { status: "failed", error: message, steps });
     await publish("failed", message);
   }
