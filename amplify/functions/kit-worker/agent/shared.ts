@@ -62,7 +62,11 @@ export async function resolveSeeds(loves: string[], step: Step, who = "") {
         year ? undefined : qloo.findTags({ query, take: 5 }),
       ]);
       const entity = res.entities[0];
-      const dish = tagRes?.tags?.find((t) => t.type?.includes("specialty_dish") && same(t.name, query));
+      // A film or singer with exactly this name wins over a dish tag of the
+      // same name ("Sholay" is both a 1975 film and a dish). Places don't:
+      // "Fish Curry" is also a restaurant.
+      const exact = entity && /artist|movie|tv_show|book|person/.test(entity.type) && same(entity.name, query);
+      const dish = exact ? undefined : tagRes?.tags?.find((t) => t.type?.includes("specialty_dish") && same(t.name, query));
       if (dish || !entity) {
         const tag = dish ?? tagRes?.tags?.[0];
         await step({ label: `Looked up “${love}”${who} as a tag`, request: tagRes?.request, found: tag?.name ?? null });
@@ -75,7 +79,10 @@ export async function resolveSeeds(loves: string[], step: Step, who = "") {
   const seeds = resolved.flatMap((r) => (r.entity ? [r.entity] : []));
   const seedTags = resolved.flatMap((r) => (r.tag ? [r.tag] : []));
   const media = seeds.filter((s) => /artist|movie|tv_show|book|person/.test(s.type));
-  const genres = media.flatMap((s) => (s.tags ?? []).filter((t) => t.type === "urn:tag:genre").slice(0, 2));
+  // Singers' genres first: callers take the first two to find era genres
+  // such as "Old Hindi", which a film's "Action" never leads to.
+  const byMusic = [...media].sort((a, b) => Number(b.type.includes("artist")) - Number(a.type.includes("artist")));
+  const genres = byMusic.flatMap((s) => (s.tags ?? []).filter((t) => t.type === "urn:tag:genre").slice(0, 2));
   return {
     seeds,
     seedTags,
