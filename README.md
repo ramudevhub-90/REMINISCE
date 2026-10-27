@@ -4,7 +4,7 @@ A reminiscence companion for people caring for someone with dementia.
 
 A carer enters where the person grew up, roughly when, and 3–5 things they're known to love ("Kishore Kumar, fish curry, Guide (1965)"). An agent uses [Qloo](https://qloo.com)'s taste graph to expand those seeds across music, film, food and places, filtered towards older audiences and the person's home region. It then builds a **session kit**: a playlist, film clips, something to cook together, and conversation prompts. Every suggestion has a **Why this?** view showing the Qloo evidence behind it.
 
-Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com). **Live demo:** https://reminisce.revenuerush.in (no sign-up needed).
+Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com). **Live demo:** https://reminisce.revenuerush.in (no sign-up needed). **Video:** https://www.youtube.com/watch?v=VTSqE3CEDQg
 
 > Results describe what people with similar tastes tend to enjoy (aggregate affinities). They are not claims about any individual.
 
