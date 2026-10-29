@@ -2,12 +2,13 @@
 // the same code instead of sending another email. Sends through SES, either in
 // this account or by assuming a send-only role in an account with production SES
 // (SES_ROLE_ARN), so codes reach any inbox even while this account is in the sandbox.
+// The judges' demo account (DEMO_EMAIL) always takes DEMO_CODE and gets no email.
 import type { CreateAuthChallengeTriggerHandler } from "aws-lambda";
 import { randomInt } from "node:crypto";
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { AssumeRoleCommand, STSClient } from "@aws-sdk/client-sts";
 
-const { SES_ROLE_ARN, SES_REGION = "us-east-1", FROM_ADDRESS = "" } = process.env;
+const { SES_ROLE_ARN, SES_REGION = "us-east-1", FROM_ADDRESS = "", DEMO_EMAIL, DEMO_CODE } = process.env;
 let ses: SESv2Client | undefined;
 
 async function client() {
@@ -51,7 +52,9 @@ export const handler: CreateAuthChallengeTriggerHandler = async (event) => {
   const previous = [...event.request.session].reverse().find((s) => s.challengeName === "CUSTOM_CHALLENGE");
   let code = previous?.challengeMetadata?.startsWith("CODE-") ? previous.challengeMetadata.slice(5) : null;
   const email = event.request.userAttributes.email;
-  if (!code) {
+  if (DEMO_EMAIL && DEMO_CODE && email.toLowerCase() === DEMO_EMAIL) {
+    code = DEMO_CODE;
+  } else if (!code) {
     code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     await sendCode(email, code);
   }

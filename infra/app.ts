@@ -17,5 +17,6 @@ const stack = new ReminisceStack(app, "reminisce", {
   domain: domainName ? { name: domainName, hostedZoneId: ctx("hostedZoneId") } : undefined,
   fromAddress: ctx("fromAddress"),
   sesRoleArn: ctx("sesRoleArn"),
+  demoLogin: ctx("demoLogin"),
 });
 Tags.of(stack).add("project", "reminisce");

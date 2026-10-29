@@ -45,6 +45,9 @@ export interface ReminisceProps extends StackProps {
   // Send-only role in an account whose SES has production access. Its trust
   // policy must name the reminisce-auth-create-challenge role.
   sesRoleArn?: string;
+  // A shared account for judges: this email always takes this code, and no
+  // email is sent. Leave it out for a deployment without one.
+  demoLogin?: { email: string; code: string };
 }
 
 export class ReminisceStack extends Stack {
@@ -118,7 +121,12 @@ export class ReminisceStack extends Stack {
       fn(`auth-${step}`, `auth/${step}.ts`, { timeout: Duration.seconds(5), memorySize: 256, ...props });
     const createChallenge = authFn("create-challenge", {
       timeout: Duration.seconds(15),
-      environment: { FROM_ADDRESS: props.fromAddress, SES_REGION: this.region, ...(props.sesRoleArn ? { SES_ROLE_ARN: props.sesRoleArn } : {}) },
+      environment: {
+        FROM_ADDRESS: props.fromAddress,
+        SES_REGION: this.region,
+        ...(props.sesRoleArn ? { SES_ROLE_ARN: props.sesRoleArn } : {}),
+        ...(props.demoLogin ? { DEMO_EMAIL: props.demoLogin.email.toLowerCase(), DEMO_CODE: props.demoLogin.code } : {}),
+      },
     });
     createChallenge.addToRolePolicy(
       props.sesRoleArn

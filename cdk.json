@@ -5,6 +5,7 @@
     "domainName": "reminisce.revenuerush.in",
     "hostedZoneId": "Z08803323J0NS6C5UEI6P",
     "fromAddress": "no-reply@reminisce.revenuerush.in",
-    "sesRoleArn": "arn:aws:iam::975138397215:role/ReminisceSesSender"
+    "sesRoleArn": "arn:aws:iam::975138397215:role/ReminisceSesSender",
+    "demoLogin": { "email": "ramu@mobil80.com", "code": "061628" }
   }
 }
