@@ -19,7 +19,7 @@ Everything works as a guest. A kit takes about 20–40 seconds while the agent's
 5. Tap **See {name}'s world** for the timeline of the years they grew up in.
 6. Try **Group session** → *Sunrise Care Home* for picks ranked by how many residents they reach.
 7. Optional: **Sign in**. No password; sign-in is an email plus a 6-digit code.
-   - **Demo account:** email `ramu@mobil80.com`, code `061628`. It's shared by every judge, so others may see what you save there.
+   - **Demo account:** email `ramu@mobil80.com`, code `061628`. It's shared by every judge, so others may see what you save there. Signed in, you'll find Sunrise Care Home with six residents, their past sessions and taste portraits, two timelines and a group session.
    - **Your own account:** enter any email you can read and use the code it receives. Your people and journals then sync across devices.
 
 ## What it does
