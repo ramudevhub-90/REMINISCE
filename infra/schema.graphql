@@ -1,0 +1,136 @@
+# Reminisce API (AppSync reminisce-api).
+#
+# Two kinds of caller:
+# - IAM (the default): every browser, guest or signed in, through identity pool
+#   reminisce-visitors. Runs agent jobs. The worker's role alone may publish progress.
+# - Cognito user pool reminisce-carers: signed-in carers' own records. Each
+#   resolver keys on the caller's sub, so an account only ever sees its own.
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Query {
+  getKitJob(id: ID!): KitJobView
+  listPeople(nextToken: String): PersonPage @aws_cognito_user_pools
+  listGroups(nextToken: String): CareGroupPage @aws_cognito_user_pools
+  listAccounts(nextToken: String): CarerAccountPage @aws_cognito_user_pools
+}
+
+type Mutation {
+  startKit(
+    jobId: ID!
+    region: String
+    era: String
+    loves: [String!]!
+    # From the journal: Qloo entities that lit them up in past sessions, and
+    # everything already shown (so the next kit brings new things).
+    learned: AWSJSON
+    avoidIds: [String]
+    # The mood and genre tags their past hits share.
+    portrait: AWSJSON
+    # "kit" (default), "timeline", or "group" with residents in members.
+    kind: String
+    members: AWSJSON
+  ): KitJobView
+  publishProgress(jobId: ID!, status: String!, message: String, result: AWSJSON): KitProgress
+
+  savePerson(input: PersonInput!): Person @aws_cognito_user_pools
+  deletePerson(id: ID!): Person @aws_cognito_user_pools
+  saveGroup(input: CareGroupInput!): CareGroup @aws_cognito_user_pools
+  deleteGroup(id: ID!): CareGroup @aws_cognito_user_pools
+  saveAccount(input: CarerAccountInput!): CarerAccount @aws_cognito_user_pools
+  deleteAccount(id: ID!): CarerAccount @aws_cognito_user_pools
+}
+
+type Subscription {
+  onKitProgress(jobId: ID!): KitProgress @aws_subscribe(mutations: ["publishProgress"])
+}
+
+type KitJobView {
+  id: ID!
+  status: String!
+  steps: AWSJSON
+  result: AWSJSON
+  error: String
+}
+
+type KitProgress {
+  jobId: ID!
+  status: String!
+  message: String
+  result: AWSJSON
+}
+
+# A person a carer looks after. The JSON fields are the app's own shapes.
+type Person @aws_cognito_user_pools {
+  id: ID!
+  name: String
+  profile: AWSJSON
+  kit: AWSJSON
+  journal: AWSJSON
+  timeline: AWSJSON
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+input PersonInput {
+  # Omit to create.
+  id: ID
+  name: String
+  profile: AWSJSON
+  kit: AWSJSON
+  journal: AWSJSON
+  timeline: AWSJSON
+}
+
+type PersonPage @aws_cognito_user_pools {
+  items: [Person!]!
+  nextToken: String
+}
+
+# A care home's group session: residents, the group kit and its journal.
+type CareGroup @aws_cognito_user_pools {
+  id: ID!
+  name: String
+  group: AWSJSON
+  kit: AWSJSON
+  journal: AWSJSON
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+input CareGroupInput {
+  id: ID
+  name: String
+  group: AWSJSON
+  kit: AWSJSON
+  journal: AWSJSON
+}
+
+type CareGroupPage @aws_cognito_user_pools {
+  items: [CareGroup!]!
+  nextToken: String
+}
+
+# What kind of carer this account is: "family", or "carehome" with its name.
+type CarerAccount @aws_cognito_user_pools {
+  id: ID!
+  kind: String!
+  orgName: String
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+input CarerAccountInput {
+  id: ID
+  kind: String!
+  orgName: String
+}
+
+type CarerAccountPage @aws_cognito_user_pools {
+  items: [CarerAccount!]!
+  nextToken: String
+}

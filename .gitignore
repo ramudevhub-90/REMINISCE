@@ -6,12 +6,11 @@ web/dist/
 .DS_Store
 *.log
 
-# Amplify
-.amplify/
-amplify_outputs*
-amplify/layers/qloo-harness/nodejs/node_modules/
-amplify/layers/qloo-harness/nodejs/package-lock.json
-.hosting/
 .claude/
-.amplify-hosting-deploy.lock
-.deploy.env
+
+# CDK
+infra/cdk.out/
+infra/layers/qloo-harness/nodejs/node_modules/
+infra/layers/qloo-harness/nodejs/package-lock.json
+# Written by npm run config for local development
+web/public/config.json

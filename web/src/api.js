@@ -1,12 +1,14 @@
 // AppSync client. Visitors get a guest (unauthenticated) identity, so the app
 // works without signing up. Jobs run asynchronously: we subscribe to progress
 // for a job id we generate, then start the job.
-import { Amplify } from "aws-amplify";
-import { generateClient } from "aws-amplify/data";
-import outputs from "./amplify_outputs.json";
+import { gql, subscribe } from "./backend.js";
 
-Amplify.configure(outputs);
-const client = generateClient({ authMode: "identityPool" });
+const JOB_FIELDS = "id status steps result error";
+const START_KIT = `mutation StartKit($jobId: ID!, $region: String, $era: String, $loves: [String!]!, $learned: AWSJSON, $avoidIds: [String], $portrait: AWSJSON, $kind: String, $members: AWSJSON) {
+  startKit(jobId: $jobId, region: $region, era: $era, loves: $loves, learned: $learned, avoidIds: $avoidIds, portrait: $portrait, kind: $kind, members: $members) { ${JOB_FIELDS} }
+}`;
+const GET_KIT_JOB = `query GetKitJob($id: ID!) { getKitJob(id: $id) { ${JOB_FIELDS} } }`;
+const ON_KIT_PROGRESS = `subscription OnKitProgress($jobId: ID!) { onKitProgress(jobId: $jobId) { jobId status message result } }`;
 
 const TIMEOUT_MS = 240_000;
 
@@ -55,7 +57,7 @@ function startJob(args, onProgress) {
     // Also read the stored job every few seconds: a cached job can finish
     // before the subscription is connected, and its "done" event would be missed.
     const poll = async () => {
-      const { data } = await client.queries.getKitJob({ id: jobId });
+      const data = (await gql(GET_KIT_JOB, { id: jobId })).getKitJob;
       if (data?.status === "done") finish(resolve, parse(data.result));
       else if (data?.status === "failed") finish(reject, new Error(data.error || "Couldn't finish this."));
       else return false;
@@ -66,8 +68,9 @@ function startJob(args, onProgress) {
       if (!(await poll().catch(() => false))) finish(reject, new Error("This is taking too long. Please try again."));
     }, TIMEOUT_MS);
 
-    const sub = client.subscriptions.onKitProgress({ jobId }).subscribe({
-      next: (event) => {
+    const sub = subscribe(ON_KIT_PROGRESS, { jobId }, {
+      next: ({ data }) => {
+        const event = data.onKitProgress;
         if (event.status === "done") finish(resolve, parse(event.result));
         else if (event.status === "failed") finish(reject, new Error(event.message || "Couldn't finish this."));
         else if (event.message) onProgress(event.message);
@@ -75,10 +78,7 @@ function startJob(args, onProgress) {
       error: () => poll().catch(() => {}),
     });
 
-    client.mutations
-      .startKit({ jobId, ...args })
-      .then(({ errors }) => errors?.length && finish(reject, new Error(errors[0].message)))
-      .catch((err) => finish(reject, err));
+    gql(START_KIT, { jobId, ...args }).catch((err) => finish(reject, err));
   });
 }
 

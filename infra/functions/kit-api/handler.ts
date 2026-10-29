@@ -1,10 +1,8 @@
-// AppSync resolver for the custom operations:
+// AppSync resolver for the agent jobs:
 // - startKit: validates the request, records a queued job and hands it to the
 //   worker via SQS. Agent runs take longer than AppSync's resolver timeout, so
 //   the work happens asynchronously and progress streams back over a subscription.
 // - getKitJob: returns a job only to the identity that started it.
-// - publishProgress: echoes the worker's progress event to subscribers.
-// - onKitProgress: allows the subscription; AppSync filters events by jobId.
 import type { AppSyncResolverEvent } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
@@ -14,24 +12,19 @@ const db = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions
 const sqs = new SQSClient({});
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type Identity = { cognitoIdentityId?: string | null } | null;
-// Amplify's function handler passes fieldName at the top level of the event.
-type Event = AppSyncResolverEvent<Record<string, any>> & { fieldName?: string };
+// Jobs are kept for a month, then DynamoDB expires them.
+const JOB_TTL_S = 30 * 24 * 60 * 60;
 
-export const handler = async (event: Event) => {
+type Identity = { cognitoIdentityId?: string | null } | null;
+
+export const handler = async (event: AppSyncResolverEvent<Record<string, any>>) => {
   const caller = (event.identity as Identity)?.cognitoIdentityId ?? null;
-  const field = event.fieldName ?? event.info?.fieldName;
+  const field = event.info.fieldName;
   switch (field) {
     case "startKit":
       return startKit(event.arguments, caller);
     case "getKitJob":
       return getKitJob(event.arguments.id, caller);
-    case "publishProgress":
-      // End users always carry a Cognito identity; the worker's IAM role doesn't.
-      if (caller) throw new Error("Unauthorized");
-      return event.arguments;
-    case "onKitProgress":
-      return null;
     default:
       throw new Error(`Unknown field ${field}`);
   }
@@ -74,7 +67,7 @@ async function startKit(args: Record<string, any>, requester: string | null) {
   await db.send(
     new PutCommand({
       TableName: process.env.KIT_JOB_TABLE,
-      Item: { id: jobId, __typename: "KitJob", requester, status: "queued", input, createdAt: now, updatedAt: now },
+      Item: { id: jobId, requester, status: "queued", input, createdAt: now, updatedAt: now, expiresAt: Math.floor(Date.now() / 1000) + JOB_TTL_S },
       ConditionExpression: "attribute_not_exists(id)",
     }),
   );

@@ -32,57 +32,53 @@ Everything works as a guest. A kit takes about 20–40 seconds while the agent's
 
 ## Architecture
 
-Serverless on AWS with [Amplify Gen 2](https://docs.amplify.aws/react/):
+One CDK stack, `reminisce` ([`infra/stack.ts`](infra/stack.ts)), in us-east-1. Every resource has a `reminisce-…` name:
 
 ```
-React (CloudFront + S3)
-  │  guest or signed-in Cognito identity (IAM)
-  ▼
-AppSync ── startKit ──► Lambda kit-api ─ ──► SQS ──► Lambda kit-worker ──► Qloo (harness CLI layer)
-  ▲                                                     │                   └► DynamoDB QlooCache
-  └──── onKitProgress subscription ◄── publishProgress ─┘──► DynamoDB KitJob
+browser ─▶ CloudFront ─▶ S3 reminisce-web-<account>          (the React app + config.json)
+   │  guest or carer identity (identity pool reminisce-visitors, IAM)
+   ▼
+AppSync reminisce-api ── startKit ──► λ reminisce-kit-api ──► SQS reminisce-jobs ──► λ reminisce-kit-worker ──► Qloo (harness CLI layer)
+   ▲                                       └► DynamoDB reminisce-jobs                    │                       └► DynamoDB reminisce-qloo-cache
+   └── onKitProgress subscription ◄──────────── publishProgress (worker role only) ◄──────┘
+
+Cognito user pool reminisce-carers (email + 6-digit code, λ reminisce-auth-*) ─▶ AppSync ─▶ DynamoDB reminisce-people / -groups / -accounts
 ```
 
 - Agent runs take longer than AppSync's resolver timeout, so `startKit` enqueues a job (`kit`, `timeline` or `group`). The worker streams each step back over a subscription.
+- Carers' records are keyed by their Cognito `sub` in AppSync JS resolvers ([`infra/resolvers`](infra/resolvers)), so an account can only read its own.
 - The worker runs at most four Qloo calls at once and caches every response in DynamoDB for a week, to protect the event quota.
-- All Qloo access goes through [`amplify/functions/kit-worker/qloo/index.ts`](amplify/functions/kit-worker/qloo/index.ts). It runs the [`@qloo/qloo-harness`](https://www.npmjs.com/package/@qloo/qloo-harness) CLI from a Lambda layer and caches responses in DynamoDB.
+- All Qloo access goes through [`infra/functions/kit-worker/qloo/index.ts`](infra/functions/kit-worker/qloo/index.ts). It runs the [`@qloo/qloo-harness`](https://www.npmjs.com/package/@qloo/qloo-harness) CLI from a Lambda layer.
+- The front end uses the Amplify JS library only as a client for Cognito and AppSync; nothing is deployed with Amplify.
 
 ## Privacy
 
 - **Guests** (no sign-up): each person's details, journal and portrait stay in the browser on that device.
-- **With an account** (optional, email + a 6-digit code via Cognito custom auth and SES; no password): people, journals, portraits and care-home groups are saved to DynamoDB with owner-only access, so only that account can read them, and follow the carer to any device. Anything done as a guest moves into the account on sign-in. *Delete my data* removes every record and the account itself.
+- **With an account** (optional, email + a 6-digit code via Cognito custom auth and SES; no password): people, journals, portraits and care-home groups are saved to DynamoDB, keyed by the account, so only that account can read them, and follow the carer to any device. Anything done as a guest moves into the account on sign-in. *Delete my data* removes every record and the account itself.
 - Qloo only ever receives taste seeds (e.g. "Kishore Kumar", "Kolkata", "1960s"), never a name.
 - The Qloo key is an SSM SecureString read by the worker at runtime. It is never in the repo, the browser or logs.
 - Agent jobs can only be read back by the identity that created them.
 
 ## Deploy your own
 
-Requires Node 22.19 or newer and an AWS account bootstrapped for CDK.
+Requires Node 22.19 or newer and an AWS account bootstrapped for CDK (`npx cdk bootstrap`).
 
-```bash
-npm install
-npm run deploy:backend    # Cognito, AppSync, DynamoDB, SQS, Lambdas; writes web/src/amplify_outputs.json
-npm run deploy:frontend   # builds the SPA and serves it from CloudFront
-```
+1. Store the Qloo key as an SSM SecureString (CloudFormation can't create those):
 
-To use live Qloo data:
+   ```bash
+   read -rs "K?Qloo key: " && aws ssm put-parameter --region us-east-1 --name /reminisce/qloo-api-key --type SecureString --overwrite --value "$K"; unset K
+   ```
 
-```bash
-aws ssm put-parameter --name /reminisce/qloo-api-key --type SecureString --value "<key>"
-```
+2. Set your own values in [`cdk.json`](cdk.json): `fromAddress` (an SES-verified sender for sign-in codes), and optionally `sesRoleArn` (a send-only role in an account with production SES), `domainName` and `hostedZoneId` (a Route 53 zone in this account). Leave `domainName` empty to use the CloudFront address.
 
-Then set `QLOO_MODE` to `live` in [`amplify/functions/kit-worker/resource.ts`](amplify/functions/kit-worker/resource.ts) and redeploy the backend.
+3. Deploy the backend and the site together:
 
-Local UI development against the deployed backend: `npm run dev`. Tests: `npm test`.
+   ```bash
+   npm install
+   npm run deploy
+   ```
 
-Deploy-time settings live in an untracked `.deploy.env`, loaded by both deploy scripts:
-
-```bash
-export REMINISCE_FROM_ADDRESS=no-reply@example.com   # SES-verified sender for sign-in codes
-export REMINISCE_SES_ROLE_ARN=...                    # optional: send via a role in an account with production SES
-export REMINISCE_DOMAIN=reminisce.example.com        # optional custom domain (DNS elsewhere)
-export REMINISCE_CERT_ARN=arn:aws:acm:us-east-1:...  # its issued ACM certificate
-```
+Local UI development against the deployed stack: `npm run config` (writes `web/public/config.json`), then `npm run dev`. Tests: `npm test`.
 
 ## Licence
 

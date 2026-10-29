@@ -1,0 +1,10 @@
+{
+  "app": "npx tsx infra/app.ts",
+  "output": "infra/cdk.out",
+  "context": {
+    "domainName": "reminisce.revenuerush.in",
+    "hostedZoneId": "Z08803323J0NS6C5UEI6P",
+    "fromAddress": "no-reply@reminisce.revenuerush.in",
+    "sesRoleArn": "arn:aws:iam::975138397215:role/ReminisceSesSender"
+  }
+}
