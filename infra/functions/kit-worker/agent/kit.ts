@@ -85,7 +85,15 @@ export async function buildKit(
   // Era-genre singers first. Qloo's era genres can be small, so top up from
   // the wider list only as far as six, keeping later decades from crowding in.
   const expandMusic = async () => {
-    const base = { signalEntities: mediaIds, signalTags: genreTags, exclude };
+    const songs = await expandSongs(genreTags);
+    if (songs.length || !portrait.length) return songs;
+    // Portrait tags can make the request too heavy for Qloo to answer in time;
+    // their past hits still steer a lighter one.
+    await step({ label: "Asked Qloo again for songs, without the taste portrait" });
+    return expandSongs(unique(genres.map((t) => t.id)).slice(0, 6));
+  };
+  const expandSongs = async (signalTags: string[]) => {
+    const base = { signalEntities: mediaIds, signalTags, exclude };
     if (!eraTags.length) return expand("artist", 8, base);
     const picks = await expand("artist", 8, { ...base, filterTags: eraTags.map((t) => t.id) });
     if (picks.length >= 6) return picks;
